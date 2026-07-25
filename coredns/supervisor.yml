@@ -1,0 +1,12 @@
+processes:
+  corefile-gen:
+    path: /home/nonroot/corefile-gen
+    arguments: ["/home/nonroot/config/Corefile"]
+    type: one_shot
+  coredns:
+    path: /home/nonroot/coredns
+    arguments: ["-conf", "/home/nonroot/config/Corefile"]
+    type: service
+    depends_on:
+      corefile-gen:
+        exit: success

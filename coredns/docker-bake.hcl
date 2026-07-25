@@ -1,18 +1,39 @@
-variable "TAG" {
-  default = "latest"
+variable "REGISTRY" {
+  default = "ghcr.io/basecrusher/rootless-containers"
+}
+
+variable "COREDNS_VERSION" {
+  default = "v1.14.6"
 }
 
 group "default" {
-  targets = ["coredns"]
+  targets = ["coredns", "coredns-debug"]
 }
 
 target "coredns" {
   context    = "."
   dockerfile = "Dockerfile"
-  tags       = ["coredns:${TAG}"]
+  args       = {
+    COREDNS_VERSION = COREDNS_VERSION
+  }
+  tags       = [
+    "${REGISTRY}/coredns:${COREDNS_VERSION}",
+    "${REGISTRY}/coredns:latest",
+  ]
   platforms  = [
     "linux/amd64",
     "linux/arm64",
     "linux/arm/v7",
+  ]
+}
+
+target "coredns-debug" {
+  inherits = ["coredns"]
+  args     = {
+    BASE_IMAGE = "gcr.io/distroless/static-debian13:debug-nonroot"
+  }
+  tags     = [
+    "${REGISTRY}/coredns:${COREDNS_VERSION}-debug",
+    "${REGISTRY}/coredns:latest-debug",
   ]
 }
