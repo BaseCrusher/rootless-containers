@@ -7,7 +7,7 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 ARG COREDNS_VERSION=v1.14.6
 ARG COREFILE_GEN_VERSION=v1.0.1
-ARG SUPERVISOR_VERSION=v1.0.1
+ARG SUPERVISOR_VERSION=v1.0.2
 
 WORKDIR /coredns
 
@@ -52,7 +52,7 @@ RUN curl -fsSL -o corefile-gen \
     https://github.com/BaseCrusher/coredns-envvar-corefile/releases/download/$COREFILE_GEN_VERSION/coredns-envvar-corefile-linux-$TARGETARCH \
     && chmod +x corefile-gen
 RUN curl -fsSL -o container-supervisor \
-    https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH \
+    https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
 RUN mkdir config
 

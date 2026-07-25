@@ -61,13 +61,19 @@ change. CoreDNS itself is pinned by the `COREDNS_VERSION` build arg
 ## Startup: corefile-gen, then CoreDNS
 
 Two release binaries sit next to `coredns`, both fetched from
-`.../releases/download/$VERSION/<tool>-linux-$TARGETARCH` — the asset names end
-in `linux-<GOARCH>`, which is exactly `$TARGETARCH`, so no mapping table:
+`.../releases/download/$VERSION/<tool>-linux-<arch>`. The two repos name their
+32-bit arm asset differently, so the suffix differs — no mapping table either
+way, just different variables:
 
-| Binary | Repo | Build arg |
-| --- | --- | --- |
-| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.1`) |
-| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.0.1`) |
+| Binary | Repo | Build arg | Asset suffix |
+| --- | --- | --- | --- |
+| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.1`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
+| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.0.2`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
+
+`$TARGETVARIANT` is empty for `linux/amd64` and `linux/arm64` (buildx
+normalises `arm64/v8` to an empty variant) and `v7` for `linux/arm/v7`, so the
+concatenation is exactly the asset name in all three cases. container-supervisor
+published no 32-bit arm build before v1.0.2.
 
 `corefile-gen` writes the Corefile from `COREDNS_*` env vars to the path it is
 given — a real file, no shell redirection, so it works in a distroless image.
