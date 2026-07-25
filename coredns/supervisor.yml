@@ -1,3 +1,5 @@
+hide_labels: true
+
 processes:
   corefile-gen:
     path: /home/nonroot/corefile-gen

@@ -6,6 +6,10 @@ variable "COREDNS_VERSION" {
   default = "v1.14.6"
 }
 
+variable "GIT_SHA" {
+  default = "dev"
+}
+
 group "default" {
   targets = ["coredns", "coredns-debug"]
 }
@@ -18,6 +22,7 @@ target "coredns" {
   }
   tags       = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}",
+    "${REGISTRY}/coredns:${GIT_SHA}",
     "${REGISTRY}/coredns:latest",
   ]
   platforms  = [
@@ -34,6 +39,7 @@ target "coredns-debug" {
   }
   tags     = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}-debug",
+    "${REGISTRY}/coredns:${GIT_SHA}-debug",
     "${REGISTRY}/coredns:latest-debug",
   ]
 }

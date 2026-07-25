@@ -29,12 +29,14 @@ repo's GitHub Container Registry, in two flavours:
 
 | Tag | Base |
 | --- | --- |
-| `<version>`, `latest` | distroless — no shell, no package manager |
-| `<version>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
+| `<version>`, `<commit-sha>`, `latest` | distroless — no shell, no package manager |
+| `<version>-debug`, `<commit-sha>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
 
 `<version>` is the version of the packaged upstream software (for coredns, its
 `COREDNS_VERSION`), so the tag says exactly what is inside; `latest` follows
-`main`.
+`main`. `<commit-sha>` is the full sha of the commit that built the image — the
+only tag that is never reused, so pin to it when a deployment must keep running
+exactly what it rolled out with.
 
 ## Cross-platform builds
 

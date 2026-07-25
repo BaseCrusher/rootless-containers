@@ -24,6 +24,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/bake-action@v7
+        env:
+          GIT_SHA: ${{ github.sha }}
         with:
           source: coredns
           files: docker-bake.hcl

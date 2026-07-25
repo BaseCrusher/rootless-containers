@@ -67,8 +67,8 @@ way, just different variables:
 
 | Binary | Repo | Build arg | Asset suffix |
 | --- | --- | --- | --- |
-| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.1`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
-| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.0.2`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
+| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.3`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
+| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.1.0`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
 
 `$TARGETVARIANT` is empty for `linux/amd64` and `linux/arm64` (buildx
 normalises `arm64/v8` to an empty variant) and `v7` for `linux/arm/v7`, so the
@@ -87,6 +87,12 @@ default config path `/container-supervisor/config.yml`:
 - `coredns` — `service`, `depends_on: corefile-gen: {exit: success}`. A
   `service` may only `depends_on` from container-supervisor v1.0.1 onwards;
   v1.0.0 rejects that config at load with a fatal error.
+
+Top-level `hide_labels: true` drops the `[<process>]` prefix the supervisor
+otherwise puts on every line a child writes, so CoreDNS's own log lines reach
+`docker logs` in stock CoreDNS format — anything parsing them does not have to
+know the image runs a supervisor. It affects child output only; the supervisor's
+own `[supervisor]` lines are unaffected, so a failed start is still identifiable.
 
 Because `corefile-gen` always writes that path, a Corefile mounted at
 `/home/nonroot/config/Corefile` is overwritten (or, mounted `:ro`, fails the

@@ -25,8 +25,8 @@ same `-conf`/`-dns.port` flags.
 | `traefik` plugin | [BaseCrusher/coredns-traefik](https://github.com/BaseCrusher/coredns-traefik) | `plugins.json` |
 | `acmednschallenge` plugin | [BaseCrusher/coredns-acmednschallenge](https://github.com/BaseCrusher/coredns-acmednschallenge) | `plugins.json` |
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
-| `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.1`) |
-| `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.0.2`) |
+| `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.3`) |
+| `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.1.0`) |
 
 ## Usage
 
@@ -55,7 +55,8 @@ the `COREDNS_*` variables into `/home/nonroot/config/Corefile`, then CoreDNS
 starts against it — sequenced by
 [`container-supervisor`](https://github.com/BaseCrusher/container-supervisor) as
 PID 1. If the Corefile cannot be written the container exits instead of starting
-CoreDNS.
+CoreDNS. CoreDNS's log lines reach `docker logs` unprefixed, exactly as from the
+official image; lines tagged `[supervisor]` come from the supervisor itself.
 
 In short: one group per server block, `_ZONE` and `_PORT` for the header, `__`
 for a directive inside the block and one more `__` per nesting level, empty
@@ -85,12 +86,17 @@ platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.14.6`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
-| `:v1.14.6-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
+| `:v1.14.6`, `:<commit-sha>`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
+| `:v1.14.6-debug`, `:<commit-sha>-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
 
 All under `ghcr.io/basecrusher/rootless-containers/coredns`. The version tag is
 `COREDNS_VERSION` from `docker-bake.hcl`, which is also what gets built, so the
 two can't drift; `latest` follows `main`.
+
+Every push is also tagged with its full commit sha, so a given image always has
+one tag that is never reused — `:v1.14.6` and `:latest` both move when the image
+is rebuilt from the same CoreDNS release, the sha tag does not. Pin to it when
+you need a deployment to keep running exactly what it rolled out with.
 
 ## Cross-platform builds
 
@@ -100,9 +106,11 @@ docker buildx bake -f ./coredns/docker-bake.hcl
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}`, `:${GIT_SHA}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-debug`, `:${GIT_SHA}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY` and `COREDNS_VERSION` are bake variables — override either from the
-environment (`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
+`REGISTRY`, `COREDNS_VERSION` and `GIT_SHA` are bake variables — override any of
+them from the environment (`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
+`GIT_SHA` defaults to `dev`, so a local bake does not need it; the workflow
+passes `github.sha`.
 
