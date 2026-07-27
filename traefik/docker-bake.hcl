@@ -6,10 +6,6 @@ variable "TRAEFIK_VERSION" {
   default = "v3.7.9"
 }
 
-variable "GIT_SHA" {
-  default = "dev"
-}
-
 group "default" {
   targets = ["traefik"]
 }
@@ -22,7 +18,6 @@ target "traefik" {
   }
   tags       = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}",
-    "${REGISTRY}/traefik:${GIT_SHA}",
     "${REGISTRY}/traefik:latest",
   ]
   platforms  = [

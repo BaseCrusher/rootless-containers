@@ -239,16 +239,15 @@ Every push to `main` touching this folder publishes all three platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v3.7.9`, `:<commit-sha>`, `:latest` | `scratch` | the only flavour |
+| `:v3.7.9`, `:latest` | `scratch` | the only flavour |
 
 All under `ghcr.io/basecrusher/rootless-containers/traefik`. The version tag is
 `TRAEFIK_VERSION` from `docker-bake.hcl`, which is also the release that gets
 downloaded, so the two can't drift; `latest` follows `main`.
 
-Every push is also tagged with its full commit sha, so a given image always has
-one tag that is never reused — `:v3.7.9` and `:latest` both move when the image
-is rebuilt from the same Traefik release, the sha tag does not. Pin to it when
-you need a deployment to keep running exactly what it rolled out with.
+The workflow lints the Dockerfile with droast before building and scans the
+pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
+vulnerability.
 
 ## Cross-platform builds
 
@@ -258,12 +257,10 @@ docker buildx bake -f ./traefik/docker-bake.hcl
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}`, `:${GIT_SHA}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `TRAEFIK_VERSION` and `GIT_SHA` are bake variables — override any of
-them from the environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
-`GIT_SHA` defaults to `dev`, so a local bake does not need it; the workflow
-passes `github.sha`.
+`REGISTRY` and `TRAEFIK_VERSION` are bake variables — override either from the
+environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 
 The upstream release tarball is named
 `traefik_<version>_linux_<arch>.tar.gz`, where `<arch>` is

@@ -38,17 +38,21 @@ repo's GitHub Container Registry:
 
 | Tag | Base |
 | --- | --- |
-| `<version>`, `<commit-sha>`, `latest` | the image's own base — no shell, no package manager |
-| `<version>-debug`, `<commit-sha>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
+| `<version>`, `latest` | the image's own base — no shell, no package manager |
+| `<version>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
 
 The `-debug` flavour exists only for the distroless images; `traefik` is built
 `FROM scratch` and has no debug variant.
 
 `<version>` is the version of the packaged upstream software (for coredns, its
 `COREDNS_VERSION`), so the tag says exactly what is inside; `latest` follows
-`main`. `<commit-sha>` is the full sha of the commit that built the image — the
-only tag that is never reused, so pin to it when a deployment must keep running
-exactly what it rolled out with.
+`main`. Pin to `<version>` when a deployment must keep running a known release.
+
+Before anything is built the workflow lints the Dockerfile with
+[droast](https://github.com/immanuwell/dockerfile-roast); after the push it
+scans the published image with
+[Trivy](https://github.com/aquasecurity/trivy-action) and fails on any fixable
+`HIGH` or `CRITICAL` vulnerability.
 
 ## Cross-platform builds
 
