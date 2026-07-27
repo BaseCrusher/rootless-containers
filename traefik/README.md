@@ -42,8 +42,8 @@ A static configuration file is `TRAEFIK_CONFIGFILE`, not `--configFile`.
 
 | Component | Repo | Pinned by |
 | --- | --- | --- |
-| Traefik | [traefik/traefik](https://github.com/traefik/traefik) | `TRAEFIK_VERSION` (`v3.7.9`) |
-| container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.2.0`) |
+| Traefik | [traefik/traefik](https://github.com/traefik/traefik) | `TRAEFIK_VERSION` |
+| container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
 | certwatcher | `certwatcher/` in this folder | built from source with the image |
 
 ## Usage

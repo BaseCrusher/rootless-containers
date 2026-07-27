@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/Dockerfile$/", "/docker-bake\\.hcl$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:ARG \\w+=|variable \"\\w+\" \\{\\s*default\\s*=\\s*\")(?<currentValue>[^\"\\s]+)"
+      ]
+    },
+    {
+      "customType": "jsonata",
+      "fileFormat": "json",
+      "managerFilePatterns": ["/plugins\\.json$/"],
+      "matchStrings": [
+        "$[$contains(ref, /^v/)].{ \"depName\": $substringAfter(repo, \"https://github.com/\"), \"currentValue\": ref }"
+      ],
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}

@@ -5,8 +5,10 @@ FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG COREDNS_VERSION=v1.14.6
+ARG COREDNS_VERSION
+# renovate: datasource=github-releases depName=BaseCrusher/coredns-envvar-corefile
 ARG COREFILE_GEN_VERSION=v1.0.3
+# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 ARG SUPERVISOR_VERSION=v1.2.0
 
 WORKDIR /coredns
@@ -20,7 +22,7 @@ RUN apt-get update && apt-get install -y \
 COPY plugins.json /plugins.json
 COPY modules.json /modules.json
 
-RUN git clone --depth 1 --branch $COREDNS_VERSION https://github.com/coredns/coredns.git .
+RUN git clone --depth 1 --branch ${COREDNS_VERSION:?} https://github.com/coredns/coredns.git .
 
 RUN set -e; \
     jq -r '.[] | select(.repo) | "\(.name) \(.repo) \(.ref)"' /plugins.json \

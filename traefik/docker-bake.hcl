@@ -2,6 +2,7 @@ variable "REGISTRY" {
   default = "ghcr.io/basecrusher/rootless-containers"
 }
 
+# renovate: datasource=github-releases depName=traefik/traefik
 variable "TRAEFIK_VERSION" {
   default = "v3.7.9"
 }

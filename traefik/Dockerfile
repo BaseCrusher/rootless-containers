@@ -15,7 +15,8 @@ FROM --platform=$BUILDPLATFORM debian:trixie-slim AS build
 
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG TRAEFIK_VERSION=v3.7.9
+ARG TRAEFIK_VERSION
+# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 ARG SUPERVISOR_VERSION=v1.2.0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /traefik_temp
 
-RUN curl -fsSL https://github.com/traefik/traefik/releases/download/$TRAEFIK_VERSION/traefik_${TRAEFIK_VERSION}_linux_${TARGETARCH}${TARGETVARIANT}.tar.gz \
+RUN curl -fsSL https://github.com/traefik/traefik/releases/download/${TRAEFIK_VERSION:?}/traefik_${TRAEFIK_VERSION}_linux_${TARGETARCH}${TARGETVARIANT}.tar.gz \
     | tar -xz traefik
 RUN setcap cap_net_bind_service=+ep traefik
 RUN curl -fsSL -o container-supervisor \

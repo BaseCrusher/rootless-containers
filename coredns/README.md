@@ -21,12 +21,12 @@ same `-conf`/`-dns.port` flags.
 
 | Component | Repo | Pinned by |
 | --- | --- | --- |
-| CoreDNS | [coredns/coredns](https://github.com/coredns/coredns) | `COREDNS_VERSION` (`v1.14.6`) |
+| CoreDNS | [coredns/coredns](https://github.com/coredns/coredns) | `COREDNS_VERSION` |
 | `traefik` plugin | [BaseCrusher/coredns-traefik](https://github.com/BaseCrusher/coredns-traefik) | `plugins.json` |
 | `acmednschallenge` plugin | [BaseCrusher/coredns-acmednschallenge](https://github.com/BaseCrusher/coredns-acmednschallenge) | `plugins.json` |
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
-| `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.3`) |
-| `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.2.0`) |
+| `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
+| `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
 
 ### Patched Go modules
 

@@ -29,8 +29,7 @@ docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6
 Or build it yourself:
 
 ```sh
-docker buildx build -t <image> ./<image>
-docker run --rm <image>
+docker buildx bake -f ./<image>/docker-bake.hcl
 ```
 
 ## Published images

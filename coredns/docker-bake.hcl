@@ -2,6 +2,7 @@ variable "REGISTRY" {
   default = "ghcr.io/basecrusher/rootless-containers"
 }
 
+# renovate: datasource=github-releases depName=coredns/coredns
 variable "COREDNS_VERSION" {
   default = "v1.14.6"
 }
