@@ -8,6 +8,15 @@ runs as an unprivileged user, not root.
 - [coredns](coredns/) — CoreDNS with the traefik, acmednschallenge and records
   plugins, cloned from git at pinned refs listed in `coredns/plugins.json`.
   No Corefile to mount — it is generated at startup from `COREDNS_*` env vars.
+- [traefik](traefik/) — Traefik on `scratch`: the upstream release binary, a CA
+  bundle and nothing else. Binds ports 80/443 without root via
+  `cap_net_bind_service`; the Docker provider goes through
+  [docker-socket-proxy-go](https://github.com/BaseCrusher/docker-socket-proxy-go),
+  the image never touches `docker.sock` itself. Ships an optional `certwatcher`
+  that turns a directory of certificates — the ones `coredns` issues, say — into
+  a dynamic configuration Traefik reloads on its own. Configured through
+  `TRAEFIK_*` env vars only; flags passed as container arguments do not reach
+  Traefik.
 
 ## Usage
 
@@ -25,12 +34,15 @@ docker run --rm <image>
 ## Published images
 
 Pushes to `main` that touch an image's folder build and publish it to this
-repo's GitHub Container Registry, in two flavours:
+repo's GitHub Container Registry:
 
 | Tag | Base |
 | --- | --- |
-| `<version>`, `<commit-sha>`, `latest` | distroless — no shell, no package manager |
+| `<version>`, `<commit-sha>`, `latest` | the image's own base — no shell, no package manager |
 | `<version>-debug`, `<commit-sha>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
+
+The `-debug` flavour exists only for the distroless images; `traefik` is built
+`FROM scratch` and has no debug variant.
 
 `<version>` is the version of the packaged upstream software (for coredns, its
 `COREDNS_VERSION`), so the tag says exactly what is inside; `latest` follows

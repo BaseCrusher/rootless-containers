@@ -1,0 +1,6 @@
+tls:
+  certificates:
+{{- range . }}
+    - certFile: {{ .Cert }}
+      keyFile: {{ .Key }}
+{{- end }}

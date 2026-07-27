@@ -68,7 +68,7 @@ way, just different variables:
 | Binary | Repo | Build arg | Asset suffix |
 | --- | --- | --- | --- |
 | `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.3`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
-| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.1.0`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
+| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.2.0`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
 
 `$TARGETVARIANT` is empty for `linux/amd64` and `linux/arm64` (buildx
 normalises `arm64/v8` to an empty variant) and `v7` for `linux/arm/v7`, so the

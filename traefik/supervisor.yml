@@ -1,0 +1,8 @@
+processes:
+  traefik:
+    path: /home/nonroot/traefik
+    type: service
+  certwatcher:
+    path: /home/nonroot/certwatcher
+    type: service
+    enabled: false
