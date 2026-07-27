@@ -8,6 +8,8 @@ runs as an unprivileged user, not root.
 - [coredns](coredns/) — CoreDNS with the traefik, acmednschallenge and records
   plugins, cloned from git at pinned refs listed in `coredns/plugins.json`.
   No Corefile to mount — it is generated at startup from `COREDNS_*` env vars.
+  `coredns/modules.json` sets version floors for Go dependencies with an
+  advisory but no CoreDNS release to bump to.
 - [traefik](traefik/) — Traefik on `scratch`: the upstream release binary, a CA
   bundle and nothing else. Binds ports 80/443 without root via
   `cap_net_bind_service`; the Docker provider goes through

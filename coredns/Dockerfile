@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     libcap2-bin
 
 COPY plugins.json /plugins.json
+COPY modules.json /modules.json
 
 RUN git clone --depth 1 --branch $COREDNS_VERSION https://github.com/coredns/coredns.git .
 
@@ -40,8 +41,21 @@ RUN set -e; \
         sed -i "/^$anchor:/$mode$name:$name" plugin.cfg; \
     done < /placements
 
-RUN GOFLAGS="-buildvcs=false" make gen \
-    && GOFLAGS="-buildvcs=false" go mod tidy \
+RUN GOFLAGS="-buildvcs=false" make gen
+
+RUN set -e; \
+    export GOFLAGS="-buildvcs=false"; \
+    jq -r '.[] | "\(.module) \(.min)"' /modules.json > /overrides; \
+    while read -r module min; do \
+        cur=$(go list -m -f '{{.Version}}' "$module"); \
+        if [ "$(printf '%s\n%s\n' "$cur" "$min" | sort -V | tail -1)" = "$cur" ]; then \
+            echo "$module $cur >= $min, override no longer needed"; \
+        else \
+            go get "$module@$min"; \
+        fi; \
+    done < /overrides
+
+RUN GOFLAGS="-buildvcs=false" go mod tidy \
     && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
        GOFLAGS="-buildvcs=false" make
 

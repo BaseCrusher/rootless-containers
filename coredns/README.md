@@ -28,6 +28,28 @@ same `-conf`/`-dns.port` flags.
 | `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.3`) |
 | `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.2.0`) |
 
+### Patched Go modules
+
+A CoreDNS release ships whatever dependency versions it was cut with, so an
+advisory published afterwards fails the Trivy scan with no upstream release to
+bump to. `modules.json` lists a floor for those modules:
+
+```json
+[
+  {
+    "module": "google.golang.org/grpc",
+    "min": "v1.82.1",
+    "advisory": "GHSA-hrxh-6v49-42gf"
+  }
+]
+```
+
+The build raises each module to `min` only if CoreDNS pins something older —
+once a CoreDNS release carries that version or newer the entry does nothing but
+log `override no longer needed`, so a stale entry can never drag a dependency
+back down. An entry for a module CoreDNS no longer depends on fails the build.
+`[]` is a valid, empty list.
+
 ## Usage
 
 No Corefile to mount — configure it with `COREDNS_*` environment variables:

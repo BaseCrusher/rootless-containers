@@ -58,6 +58,29 @@ Adding a plugin means adding one object to `plugins.json` — no Dockerfile
 change. CoreDNS itself is pinned by the `COREDNS_VERSION` build arg
 (default `v1.14.6`).
 
+## Module overrides
+
+`modules.json` is the second source of truth, for Go dependencies rather than
+plugins: a list of `{module, min, advisory}` applied between `make gen` and
+`go mod tidy`. It exists because CoreDNS releases pin dependency versions at
+cut time — an advisory published afterwards leaves the Trivy gate failing with
+no upstream release to bump to.
+
+Each entry is a *floor*, not a pin. The build reads the currently selected
+version with `go list -m` and only runs `go get $module@$min` when `min` sorts
+higher (`sort -V`); otherwise it logs `override no longer needed` and moves on.
+That is the whole point of the indirection — `go mod edit -require` and a plain
+`go get module@version` both set the version exactly, so a stale entry would
+silently *downgrade* the dependency the day CoreDNS ships something newer.
+Entries are therefore safe to leave in place; delete them when the log says they
+are inert.
+
+`go list -m` fails the build for a module CoreDNS no longer requires, so an
+entry cannot rot into a silent no-op. `modules.json` may be `[]`.
+
+The override runs in its own `RUN` layer between two others that were one layer
+before, since a `go get` failure and a compile failure want to be told apart.
+
 ## Startup: corefile-gen, then CoreDNS
 
 Two release binaries sit next to `coredns`, both fetched from
