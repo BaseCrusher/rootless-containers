@@ -1,0 +1,5 @@
+*
+!certs.tmpl
+!supervisor.yml
+!certwatcher
+**/.claude
