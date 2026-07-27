@@ -10,6 +10,11 @@ on:
       - traefik/**
       - .github/workflows/traefik.yml
       - .github/workflows/build.yml
+  pull_request:
+    paths:
+      - traefik/**
+      - .github/workflows/traefik.yml
+      - .github/workflows/build.yml
 
 permissions:
   contents: read
@@ -20,3 +25,4 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       container: traefik
+      push: ${{ github.event_name != 'pull_request' }}

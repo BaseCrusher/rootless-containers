@@ -10,6 +10,11 @@ on:
       - coredns/**
       - .github/workflows/coredns.yml
       - .github/workflows/build.yml
+  pull_request:
+    paths:
+      - coredns/**
+      - .github/workflows/coredns.yml
+      - .github/workflows/build.yml
 
 permissions:
   contents: read
@@ -20,3 +25,4 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       container: coredns
+      push: ${{ github.event_name != 'pull_request' }}

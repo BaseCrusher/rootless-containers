@@ -55,6 +55,19 @@ scans the published image with
 [Trivy](https://github.com/aquasecurity/trivy-action) and fails on any fixable
 `HIGH` or `CRITICAL` vulnerability.
 
+Each image also rebuilds nightly, so a vulnerability published against a base
+layer after the fact still turns into a failing Trivy scan. Pull requests run
+the same lint and build without publishing, which is what validates a
+dependency bump before it reaches `main`.
+
+## Dependency updates
+
+[Renovate](https://docs.renovatebot.com) opens a pull request per update. It
+tracks the version variables in each `docker-bake.hcl` and `Dockerfile` (via
+the `# renovate:` annotation above each one), the plugin pins in
+`coredns/plugins.json`, base images, and GitHub Actions. Configuration lives in
+`renovate.json`.
+
 ## Cross-platform builds
 
 Each folder carries a `docker-bake.hcl` listing the platforms that image is
