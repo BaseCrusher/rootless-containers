@@ -4,7 +4,7 @@ variable "REGISTRY" {
 
 # renovate: datasource=github-releases depName=traefik/traefik
 variable "TRAEFIK_VERSION" {
-  default = "v3.7.9"
+  default = "v3.7.10"
 }
 
 group "default" {
