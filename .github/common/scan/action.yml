@@ -1,0 +1,17 @@
+name: scan
+description: Fail on any fixable HIGH or CRITICAL vulnerability in a published image.
+
+inputs:
+  image:
+    description: Image and tag below ghcr.io/basecrusher/rootless-containers.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        image-ref: ghcr.io/basecrusher/rootless-containers/${{ inputs.image }}
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: '1'

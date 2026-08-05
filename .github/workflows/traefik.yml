@@ -9,12 +9,12 @@ on:
     paths:
       - traefik/**
       - .github/workflows/traefik.yml
-      - .github/workflows/build.yml
+      - .github/common/**
   pull_request:
     paths:
       - traefik/**
       - .github/workflows/traefik.yml
-      - .github/workflows/build.yml
+      - .github/common/**
 
 permissions:
   contents: read
@@ -22,7 +22,15 @@ permissions:
 
 jobs:
   build:
-    uses: ./.github/workflows/build.yml
-    with:
-      container: traefik
-      push: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/common/build
+        with:
+          container: traefik
+          push: ${{ github.event_name != 'pull_request' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/common/scan
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          image: traefik:latest

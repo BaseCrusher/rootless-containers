@@ -145,6 +145,26 @@ configuration *before* comparing it against the running one, so the new bytes
 count as a change and the certificate is swapped in. Rewriting the file is
 therefore the trigger for both new domains and renewals.
 
+`CERTWATCHER_OUTPUT` has to land in a directory uid 65532 can write to, so
+certwatcher and a read-only mount of your own dynamic configuration cannot share
+one directory: mounted over `/home/nonroot/config/dynamic` read-only,
+certwatcher cannot write `certs.yml` and aborts. Either mount that volume
+read-write and give uid 65532 write access to it, or keep the two apart — write
+`certs.yml` to `/home/nonroot/config` and mount the read-only configuration on
+`/home/nonroot/config/dynamic` below it:
+
+```yaml
+      CERTWATCHER_OUTPUT: /home/nonroot/config/certs.yml
+      TRAEFIK_PROVIDERS_FILE_DIRECTORY: /home/nonroot/config
+    volumes:
+      - ./dynamic:/home/nonroot/config/dynamic:ro
+```
+
+The file provider reads the directory recursively, so both are picked up. It
+parses every `.yml`, `.yaml` and `.toml` it finds there — `acme.json` is ignored,
+but a static `traefik.yml` mounted into the same directory would be read as
+dynamic configuration; keep it somewhere else.
+
 The private key must be readable by uid 65532. The plugin writes keys `600` by
 default, owned by the CoreDNS user, which Traefik cannot read — issue them as
 `certificateStorageDisk PATH 640 GROUP` with a group both containers share.
@@ -213,8 +233,8 @@ thing touching the socket, and it never has to run in this image.
 ### Scratch caveats
 
 - **No shell.** `docker exec` and shell-form health checks do not work; use
-  `docker logs`, Traefik's `ping` and `metrics` endpoints. There is no `-debug`
-  flavour — the base is always `scratch`.
+  `docker logs`, Traefik's `ping` and `metrics` endpoints, or the `-debug` image
+  below.
 - **Log lines are prefixed.** container-supervisor labels each process's output,
   so `docker logs` shows `[traefik    ] …` and `[certwatcher] …` rather than
   stock Traefik format. Anything parsing the logs has to strip the prefix.
@@ -239,7 +259,12 @@ Every push to `main` touching this folder publishes all three platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v3.7.9`, `:latest` | `scratch` | the only flavour |
+| `:v3.7.9`, `:latest` | `scratch` | no shell, no package manager |
+| `:v3.7.9-debug`, `:latest-debug` | `scratch` | identical, plus Debian's static busybox — `/bin/sh` and its applets for `docker exec` |
+
+The debug image is the same `final` stage with one extra layer, so it runs the
+same binaries as the same uid; only reach for it when you need to look inside a
+running container, and don't deploy it.
 
 All under `ghcr.io/basecrusher/rootless-containers/traefik`. The version tag is
 `TRAEFIK_VERSION` from `docker-bake.hcl`, which is also the release that gets
@@ -247,7 +272,8 @@ downloaded, so the two can't drift; `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
-vulnerability.
+vulnerability. A nightly `trivy-traefik` workflow rescans `latest` and
+`latest-debug` without rebuilding.
 
 ## Cross-platform builds
 
@@ -258,6 +284,7 @@ docker buildx bake -f ./traefik/docker-bake.hcl
 | Target | Tag | Platforms |
 | --- | --- | --- |
 | `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 `REGISTRY` and `TRAEFIK_VERSION` are bake variables — override either from the
 environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).

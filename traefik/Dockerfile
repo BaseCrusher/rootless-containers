@@ -36,7 +36,17 @@ COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
 COPY certs.tmpl ./certs.tmpl
 RUN mkdir -p config/dynamic
 
-FROM scratch
+FROM debian:trixie-slim AS busybox
+
+RUN apt-get update && apt-get install -y --no-install-recommends busybox-static
+
+RUN mkdir -p /busybox_root/bin \
+    && cp /bin/busybox /busybox_root/bin/busybox \
+    && for applet in $(/bin/busybox --list); do \
+         [ "$applet" = busybox ] || ln -sf /bin/busybox "/busybox_root/bin/$applet"; \
+       done
+
+FROM scratch AS final
 COPY --from=build --chown=65532:65532 /traefik_temp/ /home/nonroot/
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY supervisor.yml /container-supervisor/config.yml
@@ -45,3 +55,6 @@ WORKDIR /home/nonroot
 
 EXPOSE 80 443
 ENTRYPOINT ["/home/nonroot/container-supervisor"]
+
+FROM final AS debug
+COPY --from=busybox /busybox_root/bin/ /bin/

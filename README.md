@@ -40,10 +40,11 @@ repo's GitHub Container Registry:
 | Tag | Base |
 | --- | --- |
 | `<version>`, `latest` | the image's own base — no shell, no package manager |
-| `<version>-debug`, `latest-debug` | distroless debug — busybox shell for `docker exec` |
+| `<version>-debug`, `latest-debug` | same base plus a busybox shell for `docker exec` |
 
-The `-debug` flavour exists only for the distroless images; `traefik` is built
-`FROM scratch` and has no debug variant.
+Every image ships a `-debug` flavour. The distroless images get it from the
+`:debug-nonroot` base; `traefik` is built `FROM scratch`, so its debug variant
+copies in Debian's static busybox with the applets symlinked into `/bin`.
 
 `<version>` is the version of the packaged upstream software (for coredns, its
 `COREDNS_VERSION`), so the tag says exactly what is inside; `latest` follows
@@ -59,6 +60,16 @@ Each image also rebuilds nightly, so a vulnerability published against a base
 layer after the fact still turns into a failing Trivy scan. Pull requests run
 the same lint and build without publishing, which is what validates a
 dependency bump before it reaches `main`.
+
+Each image also gets its own nightly `trivy-<image>` workflow that scans its
+published tags — including `latest-debug` — without rebuilding, so the registry
+still gets a verdict on a night the build itself breaks, and a failure names the
+image directly. Those are thin callers of the reusable `trivy` workflow, which
+takes the container folder name and scans every tag of it.
+
+The shared steps live in `.github/common` as composite actions: `build` lints
+and bakes a container folder, `scan` applies the vulnerability policy. Each
+workflow in `.github/workflows` is then just its triggers plus a call to those.
 
 ## Dependency updates
 

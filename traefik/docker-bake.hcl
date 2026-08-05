@@ -8,12 +8,13 @@ variable "TRAEFIK_VERSION" {
 }
 
 group "default" {
-  targets = ["traefik"]
+  targets = ["traefik", "traefik-debug"]
 }
 
 target "traefik" {
   context    = "."
   dockerfile = "Dockerfile"
+  target     = "final"
   args       = {
     TRAEFIK_VERSION = TRAEFIK_VERSION
   }
@@ -25,5 +26,14 @@ target "traefik" {
     "linux/amd64",
     "linux/arm64",
     "linux/arm/v7",
+  ]
+}
+
+target "traefik-debug" {
+  inherits = ["traefik"]
+  target   = "debug"
+  tags     = [
+    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-debug",
+    "${REGISTRY}/traefik:latest-debug",
   ]
 }
