@@ -5,7 +5,7 @@ runs as an unprivileged user, not root.
 
 ## Images
 
-- [coredns](coredns/) — CoreDNS with the traefik, acmednschallenge and records
+- [coredns](coredns/) — CoreDNS with the acmednschallenge and records
   plugins, cloned from git at pinned refs listed in `coredns/plugins.json`.
   No Corefile to mount — it is generated at startup from `COREDNS_*` env vars.
   `coredns/modules.json` sets version floors for Go dependencies with an

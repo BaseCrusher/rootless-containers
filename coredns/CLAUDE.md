@@ -1,7 +1,6 @@
 # coredns — build internals
 
-CoreDNS built from source with the `traefik`, `acmednschallenge` and `records`
-plugins.
+CoreDNS built from source with the `acmednschallenge` and `records` plugins.
 
 ## Plugins
 
@@ -11,8 +10,8 @@ and the order of the plugin chain:
 ```json
 [
   {
-    "name": "traefik",
-    "repo": "https://github.com/BaseCrusher/coredns-traefik",
+    "name": "acmednschallenge",
+    "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
     "ref": "v1.0.0",
     "before": "file"
   }
@@ -28,9 +27,6 @@ and the order of the plugin chain:
 `plugin.cfg` order is request-handling order, so placement is what makes these
 plugins work at all. Each anchor is taken straight from the plugin's own README:
 
-- **traefik** — `before: file`. Its README says to add it "above the backend
-  plugins that answer the zone — `file`, `auto`, `secondary`, `etcd`, and
-  `forward`", and recommends "just before `file`" since that clears all five.
 - **acmednschallenge** — `before: file`. Its README says "above `file` and
   `forward`"; it only intercepts `_acme-challenge` TXT queries and passes
   everything else on, so a zone plugin running first breaks issuance.
@@ -44,14 +40,14 @@ resolving, silently drifting off the requirement. An anchor that isn't in
 `plugin.cfg` at all fails the build rather than dropping the plugin silently.
 
 `dnssec` needs no entry: upstream already places it above `hosts`/`file`, so it
-sits above all three and signs their responses, and leaving it below `cache`
+sits above both and signs their responses, and leaving it below `cache`
 means signed responses are cached instead of re-signed on every hit.
 
 The resulting chain, upstream entries elided:
 
 ```
 … cache … dnssec … hosts, records, route53 … kubernetes,
-traefik, acmednschallenge, file, auto, secondary, etcd, loop, forward …
+acmednschallenge, file, auto, secondary, etcd, loop, forward …
 ```
 
 Adding a plugin means adding one object to `plugins.json` — no Dockerfile

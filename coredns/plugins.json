@@ -1,11 +1,5 @@
 [
   {
-    "name": "traefik",
-    "repo": "https://github.com/BaseCrusher/coredns-traefik",
-    "ref": "v1.0.0",
-    "before": "file"
-  },
-  {
     "name": "acmednschallenge",
     "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
     "ref": "v1.0.0",

@@ -1,14 +1,14 @@
 # coredns
 
-[CoreDNS](https://coredns.io/) with the `traefik`, `acmednschallenge` and
-`records` plugins, taking its whole configuration from environment variables
-instead of a mounted Corefile.
+[CoreDNS](https://coredns.io/) with the `acmednschallenge` and `records`
+plugins, taking its whole configuration from environment variables instead of a
+mounted Corefile.
 
 ## How it differs from `coredns/coredns`
 
 | | official image | this image |
 | --- | --- | --- |
-| Plugins | upstream set | upstream set **+** `traefik`, `acmednschallenge`, `records` |
+| Plugins | upstream set | upstream set **+** `acmednschallenge`, `records` |
 | Corefile | mounted, read from `/Corefile` | generated at startup from `COREDNS_*` env vars |
 | PID 1 | `coredns` | `container-supervisor`, which runs the generator then CoreDNS |
 | Working dir | `/` | `/home/nonroot` |
@@ -22,7 +22,6 @@ same `-conf`/`-dns.port` flags.
 | Component | Repo | Pinned by |
 | --- | --- | --- |
 | CoreDNS | [coredns/coredns](https://github.com/coredns/coredns) | `COREDNS_VERSION` |
-| `traefik` plugin | [BaseCrusher/coredns-traefik](https://github.com/BaseCrusher/coredns-traefik) | `plugins.json` |
 | `acmednschallenge` plugin | [BaseCrusher/coredns-acmednschallenge](https://github.com/BaseCrusher/coredns-acmednschallenge) | `plugins.json` |
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
 | `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
