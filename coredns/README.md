@@ -122,7 +122,7 @@ vulnerability. A nightly `trivy-coredns` workflow rescans `latest` and
 ## Cross-platform builds
 
 ```sh
-docker buildx bake -f ./coredns/docker-bake.hcl
+cd coredns && docker buildx bake
 ```
 
 | Target | Tag | Platforms |

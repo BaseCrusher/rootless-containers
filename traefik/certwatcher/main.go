@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -10,8 +11,9 @@ import (
 	"sort"
 	"strings"
 	"text/template"
-	"time"
 )
+
+const marker = "# certwatcher "
 
 type pair struct {
 	Cert string
@@ -28,11 +30,6 @@ func main() {
 	output := env("CERTWATCHER_OUTPUT", "/home/nonroot/config/dynamic/certs.yml")
 	templatePath := env("CERTWATCHER_TEMPLATE", "/home/nonroot/certs.tmpl")
 
-	interval, err := time.ParseDuration(env("CERTWATCHER_INTERVAL", "5s"))
-	if err != nil {
-		log.Fatalf("CERTWATCHER_INTERVAL: %v", err)
-	}
-
 	tmpl, err := template.ParseFiles(templatePath)
 	if err != nil {
 		log.Fatalf("template: %v", err)
@@ -41,24 +38,34 @@ func main() {
 		log.Fatalf("output directory: %v", err)
 	}
 
-	log.Printf("watching %s every %s, writing %s", certsDir, interval, output)
-
-	var applied string
-	for {
-		pairs, fingerprint, err := scan(certsDir)
-		switch {
-		case err != nil:
-			log.Printf("scan %s: %v", certsDir, err)
-		case fingerprint != applied:
-			if err := write(output, tmpl, pairs); err != nil {
-				log.Printf("write %s: %v", output, err)
-				break
-			}
-			applied = fingerprint
-			log.Printf("wrote %s with %d certificate(s)", output, len(pairs))
-		}
-		time.Sleep(interval)
+	pairs, fingerprint, err := scan(certsDir)
+	if err != nil {
+		log.Printf("scan %s: %v", certsDir, err)
+		return
 	}
+	if fingerprint == applied(output) {
+		return
+	}
+	if err := write(output, tmpl, pairs, fingerprint); err != nil {
+		log.Printf("write %s: %v", output, err)
+		return
+	}
+	log.Printf("wrote %s with %d certificate(s)", output, len(pairs))
+}
+
+// applied returns the fingerprint of the certificates the output was last written
+// from. The output is its own state: certwatcher stamps the fingerprint into the
+// first line, so a run that changes nothing rewrites nothing.
+func applied(output string) string {
+	content, err := os.ReadFile(output)
+	if err != nil {
+		return ""
+	}
+	first, _, _ := strings.Cut(string(content), "\n")
+	if !strings.HasPrefix(first, marker) {
+		return ""
+	}
+	return strings.TrimPrefix(first, marker)
 }
 
 func scan(dir string) ([]pair, string, error) {
@@ -97,13 +104,17 @@ func scan(dir string) ([]pair, string, error) {
 	return pairs, hex.EncodeToString(sum.Sum(nil)), nil
 }
 
-func write(output string, tmpl *template.Template, pairs []pair) error {
+func write(output string, tmpl *template.Template, pairs []pair, fingerprint string) error {
 	tmp, err := os.CreateTemp(filepath.Dir(output), ".certwatcher-*.tmp")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmp.Name())
 
+	if _, err := fmt.Fprintf(tmp, "%s%s\n", marker, fingerprint); err != nil {
+		tmp.Close()
+		return err
+	}
 	if err := tmpl.Execute(tmp, pairs); err != nil {
 		tmp.Close()
 		return err

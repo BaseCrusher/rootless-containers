@@ -16,7 +16,9 @@ runs as an unprivileged user, not root.
   [docker-socket-proxy-go](https://github.com/BaseCrusher/docker-socket-proxy-go),
   the image never touches `docker.sock` itself. Ships an optional `certwatcher`
   that turns a directory of certificates — the ones `coredns` issues, say — into
-  a dynamic configuration Traefik reloads on its own. Configured through
+  a dynamic configuration Traefik reloads on its own, and an optional
+  `access-log-exporter` that pushes the access log to CrowdSec over HTTP,
+  identically on Swarm and Kubernetes. Configured through
   `TRAEFIK_*` env vars only; flags passed as container arguments do not reach
   Traefik.
 
@@ -29,7 +31,7 @@ docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6
 Or build it yourself:
 
 ```sh
-docker buildx bake -f ./<image>/docker-bake.hcl
+cd <image> && docker buildx bake
 ```
 
 ## Published images
@@ -85,7 +87,11 @@ Each folder carries a `docker-bake.hcl` listing the platforms that image is
 built for, so one command produces every architecture:
 
 ```sh
-docker buildx bake -f ./<image>/docker-bake.hcl
+cd <image> && docker buildx bake
 ```
+
+Run it from the image's folder: each bake file declares `context = "."`, which
+buildx resolves against the working directory, not against the bake file. That
+is how CI builds them too — the workflow passes the folder as the build source.
 
 Built with [Buildx](https://docs.docker.com/build/) for multi-platform images.

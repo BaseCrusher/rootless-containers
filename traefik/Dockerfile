@@ -11,13 +11,26 @@ COPY certwatcher/ .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     go build -o certwatcher .
 
+FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS access-log-exporter
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /access-log-exporter
+
+COPY access-log-exporter/ .
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    go build -o access-log-exporter .
+
 FROM --platform=$BUILDPLATFORM debian:trixie-slim AS build
 
 ARG TARGETARCH
 ARG TARGETVARIANT
 ARG TRAEFIK_VERSION
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
-ARG SUPERVISOR_VERSION=v1.2.0
+ARG SUPERVISOR_VERSION=v1.4.0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -33,6 +46,7 @@ RUN curl -fsSL -o container-supervisor \
     https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
 COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
+COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./access-log-exporter
 COPY certs.tmpl ./certs.tmpl
 RUN mkdir -p config/dynamic
 

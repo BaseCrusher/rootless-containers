@@ -4,5 +4,14 @@ processes:
     type: service
   certwatcher:
     path: /home/nonroot/certwatcher
-    type: service
+    type: ticker
+    ticker: "@every 5s"
+    run_at_start: true
     enabled: false
+  accesslogexporter:
+    path: /home/nonroot/access-log-exporter
+    type: ticker
+    ticker: "@every 5s"
+    enabled: false
+    on_failure: continue
+    hide_label: true
