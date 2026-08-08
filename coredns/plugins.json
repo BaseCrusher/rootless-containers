@@ -2,7 +2,7 @@
   {
     "name": "traefik",
     "repo": "https://github.com/BaseCrusher/coredns-traefik",
-    "ref": "v1.0.0",
+    "ref": "v1.1.0",
     "before": "file"
   },
   {
