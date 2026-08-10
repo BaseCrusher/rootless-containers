@@ -32,6 +32,8 @@ ARG TRAEFIK_VERSION
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 ARG SUPERVISOR_VERSION=v1.4.0
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \

@@ -2,5 +2,7 @@
 !certs.tmpl
 !supervisor.yml
 !certwatcher
+!certwatcher/**
 !access-log-exporter
+!access-log-exporter/**
 **/.claude
