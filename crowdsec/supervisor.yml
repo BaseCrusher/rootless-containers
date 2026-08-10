@@ -1,0 +1,31 @@
+hide_labels: true
+
+processes:
+  config:
+    path: /usr/local/bin/envelope
+    arguments: ["-prefix", "CROWDSEC_CONFIG_", "-out", "/etc/crowdsec/config.yaml.local"]
+    type: one_shot
+  register:
+    path: /usr/local/bin/cscli
+    arguments: ["machines", "add", "localhost", "--auto", "--force"]
+    type: one_shot
+    depends_on:
+      config:
+        exit: success
+  cscli:
+    path: /usr/local/bin/cscli
+    arguments: ["hub", "list"]
+    type: one_shot
+    enabled: false
+    on_failure: continue
+    depends_on:
+      register:
+        exit: success
+  crowdsec:
+    path: /usr/local/bin/crowdsec
+    type: service
+    depends_on:
+      register:
+        exit: success
+      cscli:
+        exit: any

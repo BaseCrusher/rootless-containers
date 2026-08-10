@@ -10,6 +10,13 @@ runs as an unprivileged user, not root.
   No Corefile to mount — it is generated at startup from `COREDNS_*` env vars.
   `coredns/modules.json` sets version floors for Go dependencies with an
   advisory but no CoreDNS release to bump to.
+- [crowdsec](crowdsec/) — CrowdSec on distroless: the release binaries lifted out
+  of the official image, its preloaded hub and GeoLite2 databases, and no
+  `docker_start.sh`. The env vars that script reads do not work here;
+  `CROWDSEC_CONFIG_*` env vars are turned into `config.yaml.local` at startup,
+  a `cscli` slot in `container-supervisor` runs one bootstrap command before the
+  agent starts, and `docker exec cscli …` does the rest. Notification plugins
+  are not included.
 - [traefik](traefik/) — Traefik on `scratch`: the upstream release binary, a CA
   bundle and nothing else. Binds ports 80/443 without root via
   `cap_net_bind_service`; the Docker provider goes through

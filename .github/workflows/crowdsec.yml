@@ -1,0 +1,36 @@
+name: crowdsec
+
+on:
+  schedule:
+    - cron: '15 4 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - crowdsec/**
+      - .github/workflows/crowdsec.yml
+      - .github/common/**
+  pull_request:
+    paths:
+      - crowdsec/**
+      - .github/workflows/crowdsec.yml
+      - .github/common/**
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/common/build
+        with:
+          container: crowdsec
+          push: ${{ github.event_name != 'pull_request' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/common/scan
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          image: crowdsec:latest

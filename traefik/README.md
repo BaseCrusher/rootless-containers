@@ -211,7 +211,8 @@ tls:
 ### access-log-exporter — access logs to CrowdSec
 
 `access-log-exporter` ships Traefik's access log to CrowdSec's
-[`http` datasource](https://docs.crowdsec.net/docs/data_sources/http/): every 5
+[`http` datasource](https://docs.crowdsec.net/docs/data_sources/http/) — the
+[crowdsec](../crowdsec/) image in this repo, or any other: every 5
 seconds it reads the lines added since the last run and POSTs them as
 newline-delimited JSON. CrowdSec's `crowdsecurity/traefik-logs` parser reads
 them as-is.
@@ -255,9 +256,10 @@ services:
       - 80:80
 
   crowdsec:
-    image: crowdsecurity/crowdsec:latest
+    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8
     environment:
-      COLLECTIONS: crowdsecurity/traefik
+      SUPERVISOR_PROCESSES__CSCLI__ENABLED: "true"
+      SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS: collections install crowdsecurity/traefik
     volumes:
       - ./acquis.yaml:/etc/crowdsec/acquis.d/traefik.yaml:ro
       - csdata:/var/lib/crowdsec/data
