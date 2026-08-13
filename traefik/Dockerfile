@@ -30,7 +30,7 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 ARG TRAEFIK_VERSION
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
-ARG SUPERVISOR_VERSION=v1.4.0
+ARG SUPERVISOR_VERSION=v1.4.1
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

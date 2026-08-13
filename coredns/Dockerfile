@@ -9,7 +9,7 @@ ARG COREDNS_VERSION
 # renovate: datasource=github-releases depName=BaseCrusher/coredns-envvar-corefile
 ARG COREFILE_GEN_VERSION=v1.0.3
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
-ARG SUPERVISOR_VERSION=v1.4.0
+ARG SUPERVISOR_VERSION=v1.4.1
 
 WORKDIR /coredns
 
