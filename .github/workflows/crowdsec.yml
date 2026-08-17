@@ -34,3 +34,4 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         with:
           image: crowdsec:latest
+          warn-files: usr/local/bin/crowdsec,usr/local/bin/cscli

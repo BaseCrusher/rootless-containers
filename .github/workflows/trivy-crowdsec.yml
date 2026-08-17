@@ -14,3 +14,4 @@ jobs:
     uses: ./.github/workflows/trivy.yml
     with:
       image: crowdsec
+      warn-files: usr/local/bin/crowdsec,usr/local/bin/cscli

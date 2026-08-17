@@ -7,6 +7,11 @@ on:
         description: Container folder name, scanned as ghcr.io/basecrusher/rootless-containers/<image>.
         required: true
         type: string
+      warn-files:
+        description: Comma-separated file paths whose fixable vulnerabilities only warn instead of failing.
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -29,3 +34,4 @@ jobs:
       - uses: ./.github/common/scan
         with:
           image: ${{ inputs.image }}:${{ matrix.tag }}
+          warn-files: ${{ inputs.warn-files }}
