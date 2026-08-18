@@ -7,6 +7,10 @@ variable "CROWDSEC_VERSION" {
   default = "v1.7.8"
 }
 
+variable "IMAGE_REVISION" {
+  default = "1.0"
+}
+
 group "default" {
   targets = ["crowdsec", "crowdsec-debug"]
 }
@@ -18,7 +22,7 @@ target "crowdsec" {
     CROWDSEC_VERSION = CROWDSEC_VERSION
   }
   tags       = [
-    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}",
+    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}",
     "${REGISTRY}/crowdsec:latest",
   ]
   platforms  = [
@@ -34,7 +38,7 @@ target "crowdsec-debug" {
     BASE_IMAGE = "gcr.io/distroless/static-debian13:debug-nonroot"
   }
   tags     = [
-    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-debug",
+    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug",
     "${REGISTRY}/crowdsec:latest-debug",
   ]
 }

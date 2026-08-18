@@ -7,6 +7,10 @@ variable "COREDNS_VERSION" {
   default = "v1.14.6"
 }
 
+variable "IMAGE_REVISION" {
+  default = "1.0"
+}
+
 group "default" {
   targets = ["coredns", "coredns-debug"]
 }
@@ -18,7 +22,7 @@ target "coredns" {
     COREDNS_VERSION = COREDNS_VERSION
   }
   tags       = [
-    "${REGISTRY}/coredns:${COREDNS_VERSION}",
+    "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}",
     "${REGISTRY}/coredns:latest",
   ]
   platforms  = [
@@ -34,7 +38,7 @@ target "coredns-debug" {
     BASE_IMAGE = "gcr.io/distroless/static-debian13:debug-nonroot"
   }
   tags     = [
-    "${REGISTRY}/coredns:${COREDNS_VERSION}-debug",
+    "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}-debug",
     "${REGISTRY}/coredns:latest-debug",
   ]
 }

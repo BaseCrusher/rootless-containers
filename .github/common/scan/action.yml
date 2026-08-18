@@ -1,14 +1,10 @@
 name: scan
-description: Fail on any fixable HIGH or CRITICAL vulnerability in a published image; warn (do not fail) for listed files.
+description: Fail on any fixable HIGH or CRITICAL vulnerability in a published image.
 
 inputs:
   image:
     description: Image and tag below ghcr.io/basecrusher/rootless-containers.
     required: true
-  warn-files:
-    description: Comma-separated file paths whose fixable vulnerabilities only warn instead of failing the build.
-    required: false
-    default: ''
 
 runs:
   using: composite
@@ -18,31 +14,4 @@ runs:
         image-ref: ghcr.io/basecrusher/rootless-containers/${{ inputs.image }}
         severity: CRITICAL,HIGH
         ignore-unfixed: true
-        exit-code: '0'
-        format: json
-        output: trivy.json
-
-    - shell: bash
-      run: |
-        block=$(jq -r --arg w "${{ inputs.warn-files }}" '
-          ($w | split(",") | map(select(. != ""))) as $ws
-          | .Results // []
-          | .[]
-          | .Target as $t
-          | ($ws | any(($t | ltrimstr("/")) == (. | ltrimstr("/")))) as $warn
-          | (.Vulnerabilities // [])[]
-          | "\(if $warn then "WARN" else "FAIL" end)\t\($t): \(.VulnerabilityID) in \(.PkgName) [\(.Severity)] fix=\(.FixedVersion // "none")"
-        ' trivy.json)
-
-        fail=0
-        while IFS=$'\t' read -r kind msg; do
-          [ -z "$kind" ] && continue
-          if [ "$kind" = WARN ]; then
-            echo "::warning title=Ignored upstream vulnerability::$msg"
-          else
-            echo "::error title=Vulnerability::$msg"
-            fail=1
-          fi
-        done <<< "$block"
-
-        exit $fail
+        exit-code: '1'

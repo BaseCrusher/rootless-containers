@@ -58,7 +58,7 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   -e COREDNS_MYZONE_ZONE=example.org \
   -e COREDNS_MYZONE__file=db.example.org \
   -e COREDNS_MYZONE__log= \
-  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6-1.0
 ```
 
 That produces and runs:
@@ -107,12 +107,14 @@ platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.14.6`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
-| `:v1.14.6-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
+| `:v1.14.6-1.0`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
+| `:v1.14.6-1.0-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
 
-All under `ghcr.io/basecrusher/rootless-containers/coredns`. The version tag is
-`COREDNS_VERSION` from `docker-bake.hcl`, which is also what gets built, so the
-two can't drift; `latest` follows `main`.
+All under `ghcr.io/basecrusher/rootless-containers/coredns`. Tags are
+`<version>-Y.Z`: `<version>` is `COREDNS_VERSION` (what gets built, so the two
+can't drift), `Y.Z` is `IMAGE_REVISION` — `Y` for breaking repackaging of the
+same CoreDNS, `Z` for fixes that don't. The workflow aborts before building any
+tag that isn't `<version>-Y.Z` (see the repo README). `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
@@ -127,9 +129,10 @@ cd coredns && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY` and `COREDNS_VERSION` are bake variables — override either from the
-environment (`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
+`REGISTRY`, `COREDNS_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+variables — override any from the environment
+(`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
 

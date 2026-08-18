@@ -24,6 +24,22 @@ runs:
         no-roast: 'true'
     - uses: docker/setup-qemu-action@v4
     - uses: docker/setup-buildx-action@v4
+    - name: Enforce image tag format
+      shell: bash
+      working-directory: ${{ inputs.container }}
+      run: |
+        fail=0
+        for ref in $(docker buildx bake -f docker-bake.hcl --print 2>/dev/null | jq -r '.target[].tags[]'); do
+          tag=${ref##*:}
+          case "$tag" in
+            latest|dev|latest-debug|dev-debug) continue ;;
+          esac
+          if [[ ! "$tag" =~ ^.+-[0-9]+\.[0-9]+(-debug)?$ ]]; then
+            echo "::error::Tag '$ref' must be <app-version>-Y.Z (e.g. v1.2.3-1.0), optionally -debug; only latest/dev are exempt"
+            fail=1
+          fi
+        done
+        exit $fail
     - uses: docker/login-action@v4
       if: ${{ inputs.push == 'true' }}
       with:

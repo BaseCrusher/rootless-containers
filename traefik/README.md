@@ -55,7 +55,7 @@ docker run --rm -p 80:80 -p 443:443 \
   -v ./dynamic.yml:/home/nonroot/config/dynamic.yml:ro \
   -e TRAEFIK_ENTRYPOINTS_WEB_ADDRESS=:80 \
   -e TRAEFIK_PROVIDERS_FILE_FILENAME=config/dynamic.yml \
-  ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9
+  ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
 ```
 
 Traefik takes its whole static configuration from `TRAEFIK_*` environment
@@ -68,7 +68,7 @@ the image:
 docker run --rm -p 80:80 \
   -v ./traefik.yml:/home/nonroot/config/traefik.yml:ro \
   -e TRAEFIK_CONFIGFILE=/home/nonroot/config/traefik.yml \
-  ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9
+  ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
 ```
 
 `/home/nonroot` is the working directory, so relative paths in the
@@ -123,7 +123,7 @@ out of `certFile`, so pointing it at that combined file is fine.
 ```yaml
 services:
   traefik:
-    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9
+    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
     environment:
       SUPERVISOR_PROCESSES__CERTWATCHER__ENABLED: "true"
       CERTWATCHER_CERTS_DIR: /certs
@@ -136,7 +136,7 @@ services:
       - 443:443
 
   coredns:
-    image: ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6
+    image: ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6-1.0
     volumes:
       - certs:/certs
 
@@ -245,7 +245,7 @@ parser only accepts lines starting with `{`.
 ```yaml
 services:
   traefik:
-    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9
+    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
     environment:
       SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENABLED: "true"
       ACCESSLOGEXPORTER_URL: http://traefik:change-me@crowdsec:8081/traefik
@@ -256,7 +256,7 @@ services:
       - 80:80
 
   crowdsec:
-    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8
+    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
     environment:
       SUPERVISOR_PROCESSES__CSCLI__ENABLED: "true"
       SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS: collections install crowdsecurity/traefik
@@ -434,7 +434,7 @@ services:
     networks: [internal]
 
   traefik:
-    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9
+    image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
     environment:
       TRAEFIK_ENTRYPOINTS_WEB_ADDRESS: ":80"
       TRAEFIK_PROVIDERS_DOCKER: "true"
@@ -485,16 +485,19 @@ Every push to `main` touching this folder publishes all three platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v3.7.9`, `:latest` | `scratch` | no shell, no package manager |
-| `:v3.7.9-debug`, `:latest-debug` | `scratch` | identical, plus Debian's static busybox — `/bin/sh` and its applets for `docker exec` |
+| `:v3.7.9-1.0`, `:latest` | `scratch` | no shell, no package manager |
+| `:v3.7.9-1.0-debug`, `:latest-debug` | `scratch` | identical, plus Debian's static busybox — `/bin/sh` and its applets for `docker exec` |
 
 The debug image is the same `final` stage with one extra layer, so it runs the
 same binaries as the same uid; only reach for it when you need to look inside a
 running container, and don't deploy it.
 
-All under `ghcr.io/basecrusher/rootless-containers/traefik`. The version tag is
-`TRAEFIK_VERSION` from `docker-bake.hcl`, which is also the release that gets
-downloaded, so the two can't drift; `latest` follows `main`.
+All under `ghcr.io/basecrusher/rootless-containers/traefik`. Tags are
+`<version>-Y.Z`: `<version>` is `TRAEFIK_VERSION` (the release that gets
+downloaded, so the two can't drift), `Y.Z` is `IMAGE_REVISION` — `Y` for
+breaking repackaging of the same Traefik, `Z` for fixes that don't. The
+workflow aborts before building any tag that isn't `<version>-Y.Z` (see the repo
+README). `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
@@ -509,11 +512,12 @@ cd traefik && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY` and `TRAEFIK_VERSION` are bake variables — override either from the
-environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
+`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+variables — override any from the environment
+(`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 
 The upstream release tarball is named
 `traefik_<version>_linux_<arch>.tar.gz`, where `<arch>` is

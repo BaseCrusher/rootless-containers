@@ -7,6 +7,10 @@ variable "TRAEFIK_VERSION" {
   default = "v3.7.10"
 }
 
+variable "IMAGE_REVISION" {
+  default = "1.0"
+}
+
 group "default" {
   targets = ["traefik", "traefik-debug"]
 }
@@ -19,7 +23,7 @@ target "traefik" {
     TRAEFIK_VERSION = TRAEFIK_VERSION
   }
   tags       = [
-    "${REGISTRY}/traefik:${TRAEFIK_VERSION}",
+    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}",
     "${REGISTRY}/traefik:latest",
   ]
   platforms  = [
@@ -33,7 +37,7 @@ target "traefik-debug" {
   inherits = ["traefik"]
   target   = "debug"
   tags     = [
-    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-debug",
+    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug",
     "${REGISTRY}/traefik:latest-debug",
   ]
 }

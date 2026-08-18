@@ -32,7 +32,7 @@ runs as an unprivileged user, not root.
 ## Usage
 
 ```sh
-docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6
+docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6-1.0
 ```
 
 Or build it yourself:
@@ -48,16 +48,32 @@ repo's GitHub Container Registry:
 
 | Tag | Base |
 | --- | --- |
-| `<version>`, `latest` | the image's own base — no shell, no package manager |
-| `<version>-debug`, `latest-debug` | same base plus a busybox shell for `docker exec` |
+| `<version>-<image-rev>`, `latest` | the image's own base — no shell, no package manager |
+| `<version>-<image-rev>-debug`, `latest-debug` | same base plus a busybox shell for `docker exec` |
 
 Every image ships a `-debug` flavour. The distroless images get it from the
 `:debug-nonroot` base; `traefik` is built `FROM scratch`, so its debug variant
 copies in Debian's static busybox with the applets symlinked into `/bin`.
 
-`<version>` is the version of the packaged upstream software (for coredns, its
-`COREDNS_VERSION`), so the tag says exactly what is inside; `latest` follows
-`main`. Pin to `<version>` when a deployment must keep running a known release.
+### Tag format
+
+Every non-floating tag is `<version>-Y.Z` and the workflow **aborts before
+building** any image whose tags don't match — see the `Enforce image tag format`
+step in `.github/common/build`. Only `latest` and `dev` (each optionally
+`-debug`) are exempt.
+
+- `<version>` — the packaged upstream software (for coredns, its
+  `COREDNS_VERSION`), so the tag says exactly what is inside. Usually
+  `vX.X.X`, but the format follows however that upstream versions itself.
+- `Y` — the image revision's **major**: bump it when the same upstream version
+  is repackaged with breaking changes to the image (extra software, a moved
+  path, a changed default).
+- `Z` — the image revision's **minor**: bump it for fixes that keep the current
+  featureset (a base-layer CVE rebuild, a config tweak).
+
+`Y.Z` is the `IMAGE_REVISION` bake variable (default `1.0`); `<version>` is the
+per-image version variable. `latest` follows `main`. Pin to a full
+`<version>-Y.Z` when a deployment must keep running a known build.
 
 Before anything is built the workflow lints the Dockerfile with
 [droast](https://github.com/immanuwell/dockerfile-roast); after the push it

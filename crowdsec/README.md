@@ -53,7 +53,7 @@ enrichment works offline on first start.
 docker run --rm -p 8080:8080 \
   -v csdata:/var/lib/crowdsec/data \
   -v ./acquis.yaml:/etc/crowdsec/acquis.d/traefik.yaml:ro \
-  ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8
+  ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
 ```
 
 That is a working LAPI on `8080` plus an agent reading whatever `acquis.d`
@@ -155,7 +155,7 @@ enable it and give it arguments:
 ```yaml
 services:
   crowdsec:
-    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8
+    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
     environment:
       SUPERVISOR_PROCESSES__CSCLI__ENABLED: "true"
       SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS: collections install crowdsecurity/traefik
@@ -264,7 +264,7 @@ file is not needed to change a setting:
 ```yaml
 services:
   crowdsec:
-    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8
+    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
     environment:
       CROWDSEC_CONFIG_common__log_level: debug
       CROWDSEC_CONFIG_api__server__listen_uri: 0.0.0.0:9999
@@ -387,13 +387,15 @@ acquisition source listens on a port you choose.
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.7.8`, `:latest` | `static-debian13:nonroot` | no shell, no package manager |
-| `:v1.7.8-debug`, `:latest-debug` | `static-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
+| `:v1.7.8-1.0`, `:latest` | `static-debian13:nonroot` | no shell, no package manager |
+| `:v1.7.8-1.0-debug`, `:latest-debug` | `static-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
 
-All under `ghcr.io/basecrusher/rootless-containers/crowdsec`. The version tag is
-`CROWDSEC_VERSION` from `docker-bake.hcl`, which is also the upstream image the
-binaries are copied from, so the tag and what is inside cannot drift; `latest`
-follows `main`.
+All under `ghcr.io/basecrusher/rootless-containers/crowdsec`. Tags are
+`<version>-Y.Z`: `<version>` is `CROWDSEC_VERSION` (the upstream image the
+binaries are copied from, so the tag and what is inside cannot drift), `Y.Z` is
+`IMAGE_REVISION` — `Y` for breaking repackaging of the same CrowdSec, `Z` for
+fixes that don't. The workflow aborts before building any tag that isn't
+`<version>-Y.Z` (see the repo README). `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
@@ -408,11 +410,12 @@ cd crowdsec && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY` and `CROWDSEC_VERSION` are bake variables — override either from the
-environment (`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
+`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+variables — override any from the environment
+(`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
 compiled and nothing is emulated: the binaries come from the upstream image for
 the target platform, and the stage that edits the configuration and downloads
 container-supervisor runs on `$BUILDPLATFORM`. Adding a platform works as long
