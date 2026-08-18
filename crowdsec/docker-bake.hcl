@@ -7,6 +7,11 @@ variable "CROWDSEC_VERSION" {
   default = "v1.7.8"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
+variable "SUPERVISOR_VERSION" {
+  default = "v1.4.2"
+}
+
 variable "IMAGE_REVISION" {
   default = "1.0"
 }
@@ -19,7 +24,8 @@ target "crowdsec" {
   context    = "."
   dockerfile = "Dockerfile"
   args       = {
-    CROWDSEC_VERSION = CROWDSEC_VERSION
+    CROWDSEC_VERSION   = CROWDSEC_VERSION
+    SUPERVISOR_VERSION = SUPERVISOR_VERSION
   }
   tags       = [
     "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}",

@@ -29,8 +29,7 @@ FROM --platform=$BUILDPLATFORM debian:trixie-slim AS build
 ARG TARGETARCH
 ARG TARGETVARIANT
 ARG TRAEFIK_VERSION
-# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
-ARG SUPERVISOR_VERSION=v1.4.1
+ARG SUPERVISOR_VERSION
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 

@@ -7,6 +7,11 @@ variable "COREDNS_VERSION" {
   default = "v1.14.6"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
+variable "SUPERVISOR_VERSION" {
+  default = "v1.4.2"
+}
+
 variable "IMAGE_REVISION" {
   default = "1.0"
 }
@@ -19,7 +24,8 @@ target "coredns" {
   context    = "."
   dockerfile = "Dockerfile"
   args       = {
-    COREDNS_VERSION = COREDNS_VERSION
+    COREDNS_VERSION    = COREDNS_VERSION
+    SUPERVISOR_VERSION = SUPERVISOR_VERSION
   }
   tags       = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}",

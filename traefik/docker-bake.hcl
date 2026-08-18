@@ -7,6 +7,11 @@ variable "TRAEFIK_VERSION" {
   default = "v3.7.10"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
+variable "SUPERVISOR_VERSION" {
+  default = "v1.4.2"
+}
+
 variable "IMAGE_REVISION" {
   default = "1.0"
 }
@@ -20,7 +25,8 @@ target "traefik" {
   dockerfile = "Dockerfile"
   target     = "final"
   args       = {
-    TRAEFIK_VERSION = TRAEFIK_VERSION
+    TRAEFIK_VERSION    = TRAEFIK_VERSION
+    SUPERVISOR_VERSION = SUPERVISOR_VERSION
   }
   tags       = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}",

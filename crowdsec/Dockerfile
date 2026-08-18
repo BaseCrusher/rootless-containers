@@ -8,8 +8,7 @@ FROM --platform=$BUILDPLATFORM crowdsecurity/crowdsec:${CROWDSEC_VERSION:?} AS c
 
 ARG TARGETARCH
 ARG TARGETVARIANT
-# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
-ARG SUPERVISOR_VERSION=v1.4.1
+ARG SUPERVISOR_VERSION
 # renovate: datasource=github-releases depName=BaseCrusher/envelope
 ARG ENVELOPE_VERSION=v1.1.0
 
