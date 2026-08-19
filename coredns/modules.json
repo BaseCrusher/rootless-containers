@@ -1,12 +1,7 @@
 [
   {
-    "module": "google.golang.org/grpc",
-    "min": "v1.82.1",
-    "advisory": "GHSA-hrxh-6v49-42gf"
-  },
-  {
-    "module": " golang.org/x/text",
-    "min": "v0.39.0",
-    "advisory": "CVE-2026-56852"
+    "module": "golang.org/x/mod",
+    "min": "v0.40.0",
+    "advisory": "CVE-2026-56864"
   }
 ]
