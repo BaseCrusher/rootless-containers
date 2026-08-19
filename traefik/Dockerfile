@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS certwatcher
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS certwatcher
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -11,7 +11,7 @@ COPY certwatcher/ .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     go build -o certwatcher .
 
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS access-log-exporter
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS access-log-exporter
 
 ARG TARGETOS
 ARG TARGETARCH
