@@ -501,7 +501,7 @@ README). `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
-vulnerability. A nightly `trivy-traefik` workflow rescans `latest` and
+vulnerability. A nightly `traefik-scan` workflow rescans `latest` and
 `latest-debug` without rebuilding.
 
 ## Cross-platform builds

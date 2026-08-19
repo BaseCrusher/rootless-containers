@@ -1,0 +1,20 @@
+name: crowdsec-scan
+
+on:
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/common/scan-published
+        with:
+          image: crowdsec
+          warn-files: usr/local/bin/crowdsec,usr/local/bin/cscli

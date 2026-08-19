@@ -86,15 +86,17 @@ layer after the fact still turns into a failing Trivy scan. Pull requests run
 the same lint and build without publishing, which is what validates a
 dependency bump before it reaches `main`.
 
-Each image also gets its own nightly `trivy-<image>` workflow that scans its
+Each image also gets its own nightly `<image>-scan` workflow that scans its
 published tags — including `latest-debug` — without rebuilding, so the registry
 still gets a verdict on a night the build itself breaks, and a failure names the
-image directly. Those are thin callers of the reusable `trivy` workflow, which
-takes the container folder name and scans every tag of it.
+image directly. Those are thin callers of the `scan-published` composite
+action, which takes the container folder name and scans both its published tags.
 
 The shared steps live in `.github/common` as composite actions: `build` lints
-and bakes a container folder, `scan` applies the vulnerability policy. Each
-workflow in `.github/workflows` is then just its triggers plus a call to those.
+and bakes a container folder, `scan` applies the vulnerability policy to one
+image, and `scan-published` logs in and runs `scan` against both published tags.
+Each workflow in `.github/workflows` is then just its triggers plus a call to
+those.
 
 ## Dependency updates
 

@@ -1,18 +1,53 @@
 name: scan
-description: Fail on any fixable HIGH or CRITICAL vulnerability in a published image.
+description: Fail on any fixable HIGH or CRITICAL vulnerability in a published image; warn (never fail) for files listed in warn-files.
 
 inputs:
   image:
     description: Image and tag below ghcr.io/basecrusher/rootless-containers.
     required: true
+  warn-files:
+    description: Comma-separated file paths whose fixable vulnerabilities only warn instead of failing.
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - uses: aquasecurity/trivy-action@v0.36.0
+    - name: Gate scan
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ghcr.io/basecrusher/rootless-containers/${{ inputs.image }}
         severity: CRITICAL,HIGH
         ignore-unfixed: true
         exit-code: '1'
         skip-version-check: true
+        skip-files: ${{ inputs.warn-files }}
+
+    - name: Warn scan
+      if: ${{ inputs.warn-files != '' }}
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        image-ref: ghcr.io/basecrusher/rootless-containers/${{ inputs.image }}
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: '0'
+        skip-version-check: true
+        format: json
+        output: trivy-warn.json
+
+    - name: Report ignored-file findings as warnings
+      if: ${{ inputs.warn-files != '' }}
+      shell: bash
+      run: |
+        jq -r --arg files '${{ inputs.warn-files }}' '
+          def glob2re:
+            gsub("(?<c>[.+^$(){}|\\[\\]\\\\])"; "\\(.c)")
+            | gsub("\\*"; ".*")
+            | gsub("\\?"; ".");
+          ($files | split(",") | map(glob2re)) as $wf
+          | .Results[]?
+          | .Target as $t
+          | select($wf | any(. as $re | $t | test("^\($re)$")))
+          | (.Vulnerabilities // [])[]
+          | "::warning::\($t): \(.VulnerabilityID) \(.Severity) \(.PkgName) \(.InstalledVersion) -> \(.FixedVersion // "none")"
+        ' trivy-warn.json

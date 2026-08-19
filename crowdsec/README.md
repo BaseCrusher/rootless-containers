@@ -399,7 +399,7 @@ fixes that don't. The workflow aborts before building any tag that isn't
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
-vulnerability. A nightly `trivy-crowdsec` workflow rescans `latest` and
+vulnerability. A nightly `crowdsec-scan` workflow rescans `latest` and
 `latest-debug` without rebuilding.
 
 ## Cross-platform builds
