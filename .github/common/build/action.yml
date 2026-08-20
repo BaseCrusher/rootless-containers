@@ -51,3 +51,6 @@ runs:
         source: ${{ inputs.container }}
         files: docker-bake.hcl
         push: ${{ inputs.push }}
+        set: |
+          *.cache-from=type=gha,scope=${{ inputs.container }}
+          *.cache-to=type=gha,scope=${{ inputs.container }},mode=max

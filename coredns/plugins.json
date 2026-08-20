@@ -3,7 +3,7 @@
     "name": "records",
     "repo": "https://github.com/coredns/records",
     "ref": "a3157e710d9e57c75e4950a3750228f3ed9bb47a",
-    "after": "file"
+    "before": "forward"
   },
   {
     "name": "traefik",
@@ -15,6 +15,6 @@
     "name": "acmednschallenge",
     "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
     "ref": "v1.1.0",
-    "before": "template"
+    "before": "traefik"
   }
 ]

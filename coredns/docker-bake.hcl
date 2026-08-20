@@ -18,7 +18,7 @@ variable "SUPERVISOR_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "3.2"
+  default = "3.3"
 }
 
 group "default" {

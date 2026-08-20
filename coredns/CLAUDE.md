@@ -1,6 +1,7 @@
 # coredns — build internals
 
-CoreDNS built from source with the `acmednschallenge` and `records` plugins.
+CoreDNS built from source with the `acmednschallenge`, `traefik`, and `records`
+plugins.
 
 ## Plugins
 
@@ -10,10 +11,10 @@ and the order of the plugin chain:
 ```json
 [
   {
-    "name": "acmednschallenge",
-    "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
-    "ref": "v1.0.0",
-    "before": "file"
+    "name": "records",
+    "repo": "https://github.com/coredns/records",
+    "ref": "a3157e710d9e57c75e4950a3750228f3ed9bb47a",
+    "before": "forward"
   }
 ]
 ```
@@ -27,17 +28,27 @@ and the order of the plugin chain:
 `plugin.cfg` order is request-handling order, so placement is what makes these
 plugins work at all. Each anchor is taken straight from the plugin's own README:
 
-- **acmednschallenge** — `before: records`. Its README says "above `file` and
-  `forward`", but that predates carrying a zone plugin (`records`) that sits
-  *above* `file`. It only intercepts `_acme-challenge` TXT queries and passes
-  everything else on, so it must run before **every** authoritative resolver, or
-  that resolver answers the challenge query (NXDOMAIN/NODATA, no fallthrough)
-  before acmednschallenge sees it — normal records still resolve, only issuance
-  breaks. `records` is the topmost such resolver, so acmednschallenge anchors
-  directly above it. Its `plugins.json` entry must therefore come *after*
-  `records`, so the `records:` line already exists when this one is placed.
-- **records** — `before: template`, above `hosts`/`file`, so it is authoritative
-  ahead of the upstream zone plugins.
+- **acmednschallenge** — `before: traefik`. It intercepts only `_acme-challenge`
+  TXT queries and passes everything else on, so it must run before **every**
+  authoritative resolver, or that resolver answers the challenge query
+  (NXDOMAIN/NODATA, no fallthrough) before acmednschallenge sees it — normal
+  names still resolve, only issuance breaks. Its README says "above `file` and
+  `forward`", but that predates carrying zone plugins (`traefik`, `records`)
+  that sit *above* `file`. `traefik` is now the topmost such resolver, so
+  acmednschallenge anchors directly above it; its `plugins.json` entry must
+  therefore come *after* `traefik`, so the `traefik:` line already exists when
+  this one is placed.
+- **traefik** — `before: template`, above every backend that answers its zone
+  (`template`, `hosts`, `file`, `auto`, `secondary`, `etcd`, `forward`). It
+  serves hosts discovered from a Traefik instance and returns NXDOMAIN for any
+  other name — no fallthrough unless configured — so any of those backends
+  running first would answer a discovered host before `traefik` sees it.
+- **records** — `before: forward`. It has no `fallthrough`, so wherever it sits
+  it answers (or NXDOMAINs) authoritatively for its zones and ends the chain.
+  Placed as low as possible — below every other authoritative zone plugin
+  (`hosts`, `file`, `auto`, `secondary`, `etcd`), so each gets first refusal —
+  but it must stay above the `forward` catch-all, which proxies everything and
+  terminates the chain, so any resolver below `forward` never runs.
 
 Anchor on the plugin the constraint actually names, not on a neighbour that
 happens to sit in the right place — a neighbour can move upstream while still
@@ -51,13 +62,13 @@ means signed responses are cached instead of re-signed on every hit.
 The resulting chain, upstream entries elided:
 
 ```
-… cache … dnssec … acmednschallenge, records, template … hosts,
-route53 … kubernetes, traefik, file, auto, secondary, etcd, loop, forward …
+… cache … dnssec … acmednschallenge, traefik, template … hosts,
+route53 … kubernetes, file, auto, secondary, etcd, loop, records, forward …
 ```
 
 Adding a plugin means adding one object to `plugins.json` — no Dockerfile
-change. CoreDNS itself is pinned by the `COREDNS_VERSION` build arg
-(default `v1.14.6`).
+change. CoreDNS itself is pinned by the `COREDNS_VERSION` build arg, set in
+`docker-bake.hcl` (`v1.14.7`).
 
 ## Module overrides
 

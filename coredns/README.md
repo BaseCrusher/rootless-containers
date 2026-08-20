@@ -1,14 +1,14 @@
 # coredns
 
-[CoreDNS](https://coredns.io/) with the `acmednschallenge` and `records`
-plugins, taking its whole configuration from environment variables instead of a
-mounted Corefile.
+[CoreDNS](https://coredns.io/) with the `acmednschallenge`, `traefik`, and
+`records` plugins, taking its whole configuration from environment variables
+instead of a mounted Corefile.
 
 ## How it differs from `coredns/coredns`
 
 | | official image | this image |
 | --- | --- | --- |
-| Plugins | upstream set | upstream set **+** `acmednschallenge`, `records` |
+| Plugins | upstream set | upstream set **+** `acmednschallenge`, `traefik`, `records` |
 | Corefile | mounted, read from `/Corefile` | generated at startup from `COREDNS_*` env vars |
 | PID 1 | `coredns` | `container-supervisor`, which runs the generator then CoreDNS |
 | Working dir | `/` | `/home/nonroot` |
@@ -23,6 +23,7 @@ same `-conf`/`-dns.port` flags.
 | --- | --- | --- |
 | CoreDNS | [coredns/coredns](https://github.com/coredns/coredns) | `COREDNS_VERSION` |
 | `acmednschallenge` plugin | [BaseCrusher/coredns-acmednschallenge](https://github.com/BaseCrusher/coredns-acmednschallenge) | `plugins.json` |
+| `traefik` plugin | [BaseCrusher/coredns-traefik](https://github.com/BaseCrusher/coredns-traefik) | `plugins.json` |
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
 | `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
 | `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
@@ -58,7 +59,7 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   -e COREDNS_MYZONE_ZONE=example.org \
   -e COREDNS_MYZONE__file=db.example.org \
   -e COREDNS_MYZONE__log= \
-  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.6-1.0
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-3.2
 ```
 
 That produces and runs:
@@ -107,8 +108,8 @@ platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.14.6-1.0`, `:v1.14.6-1`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
-| `:v1.14.6-1.0-debug`, `:v1.14.6-1-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
+| `:v1.14.7-3.2`, `:v1.14.7-3`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
+| `:v1.14.7-3.2-debug`, `:v1.14.7-3-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
 
 All under `ghcr.io/basecrusher/rootless-containers/coredns`. Tags are
 `<version>-Y.Z`: `<version>` is `COREDNS_VERSION` (what gets built, so the two
