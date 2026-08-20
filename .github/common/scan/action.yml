@@ -20,8 +20,9 @@ runs:
         severity: CRITICAL,HIGH
         ignore-unfixed: true
         exit-code: '1'
-        skip-version-check: true
         skip-files: ${{ inputs.warn-files }}
+      env:
+        TRIVY_SKIP_VERSION_CHECK: 'true'
 
     - name: Warn scan
       if: ${{ inputs.warn-files != '' }}
@@ -31,9 +32,10 @@ runs:
         severity: CRITICAL,HIGH
         ignore-unfixed: true
         exit-code: '0'
-        skip-version-check: true
         format: json
         output: trivy-warn.json
+      env:
+        TRIVY_SKIP_VERSION_CHECK: 'true'
 
     - name: Report ignored-file findings as warnings
       if: ${{ inputs.warn-files != '' }}
