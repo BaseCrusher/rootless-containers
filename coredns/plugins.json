@@ -14,7 +14,7 @@
   {
     "name": "acmednschallenge",
     "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
-    "ref": "v1.1.0",
+    "ref": "v2.0.0",
     "before": "traefik"
   }
 ]

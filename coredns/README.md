@@ -135,7 +135,7 @@ cd coredns && docker buildx bake
 | `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}`, `:${COREDNS_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}-debug`, `:${COREDNS_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `COREDNS_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+`REGISTRY`, `COREDNS_VERSION` and `IMAGE_REVISION` (default `4.0`) are bake
 variables — override any from the environment
 (`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
 
