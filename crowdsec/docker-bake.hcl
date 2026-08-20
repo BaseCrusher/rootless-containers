@@ -12,6 +12,11 @@ variable "SUPERVISOR_VERSION" {
   default = "v1.4.2"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/envelope
+variable "ENVELOPE_VERSION" {
+  default = "v1.1.1"
+}
+
 variable "IMAGE_REVISION" {
   default = "1.0"
 }
@@ -26,6 +31,7 @@ target "crowdsec" {
   args       = {
     CROWDSEC_VERSION   = CROWDSEC_VERSION
     SUPERVISOR_VERSION = SUPERVISOR_VERSION
+    ENVELOPE_VERSION   = ENVELOPE_VERSION
   }
   tags       = [
     "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}",
