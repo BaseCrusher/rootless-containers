@@ -34,8 +34,8 @@ runs:
           case "$tag" in
             latest|dev|latest-debug|dev-debug) continue ;;
           esac
-          if [[ ! "$tag" =~ ^.+-[0-9]+\.[0-9]+(-debug)?$ ]]; then
-            echo "::error::Tag '$ref' must be <app-version>-Y.Z (e.g. v1.2.3-1.0), optionally -debug; only latest/dev are exempt"
+          if [[ ! "$tag" =~ ^.+-[0-9]+(\.[0-9]+)?(-debug)?$ ]]; then
+            echo "::error::Tag '$ref' must be <app-version>-Y or <app-version>-Y.Z (e.g. v1.2.3-1 or v1.2.3-1.0), optionally -debug; only latest/dev are exempt"
             fail=1
           fi
         done

@@ -45,3 +45,5 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         with:
           container: coredns
+          app-id: ${{ vars.EXTRA_ADMIN_APP_ID }}
+          private-key: ${{ secrets.EXTRA_ADMIN_PRIVATE_KEY }}

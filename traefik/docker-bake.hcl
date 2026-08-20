@@ -30,6 +30,7 @@ target "traefik" {
   }
   tags       = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}",
+    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}",
     "${REGISTRY}/traefik:latest",
   ]
   platforms  = [
@@ -44,6 +45,7 @@ target "traefik-debug" {
   target   = "debug"
   tags     = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug",
+    "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}-debug",
     "${REGISTRY}/traefik:latest-debug",
   ]
 }

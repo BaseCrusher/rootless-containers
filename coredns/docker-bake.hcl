@@ -35,6 +35,7 @@ target "coredns" {
   }
   tags       = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}",
+    "${REGISTRY}/coredns:${COREDNS_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}",
     "${REGISTRY}/coredns:latest",
   ]
   platforms  = [
@@ -51,6 +52,7 @@ target "coredns-debug" {
   }
   tags     = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}-debug",
+    "${REGISTRY}/coredns:${COREDNS_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}-debug",
     "${REGISTRY}/coredns:latest-debug",
   ]
 }

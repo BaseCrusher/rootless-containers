@@ -35,6 +35,7 @@ target "crowdsec" {
   }
   tags       = [
     "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}",
+    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}",
     "${REGISTRY}/crowdsec:latest",
   ]
   platforms  = [
@@ -51,6 +52,7 @@ target "crowdsec-debug" {
   }
   tags     = [
     "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug",
+    "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${regex_replace(IMAGE_REVISION, "\\.[0-9]+$", "")}-debug",
     "${REGISTRY}/crowdsec:latest-debug",
   ]
 }
