@@ -485,8 +485,8 @@ Every push to `main` touching this folder publishes all three platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v3.7.9-1.0`, `:latest` | `scratch` | no shell, no package manager |
-| `:v3.7.9-1.0-debug`, `:latest-debug` | `scratch` | identical, plus Debian's static busybox — `/bin/sh` and its applets for `docker exec` |
+| `:v3.7.9-1.0`, `:v3.7.9-1`, `:latest` | `scratch` | no shell, no package manager |
+| `:v3.7.9-1.0-debug`, `:v3.7.9-1-debug`, `:latest-debug` | `scratch` | identical, plus Debian's static busybox — `/bin/sh` and its applets for `docker exec` |
 
 The debug image is the same `final` stage with one extra layer, so it runs the
 same binaries as the same uid; only reach for it when you need to look inside a
@@ -495,9 +495,10 @@ running container, and don't deploy it.
 All under `ghcr.io/basecrusher/rootless-containers/traefik`. Tags are
 `<version>-Y.Z`: `<version>` is `TRAEFIK_VERSION` (the release that gets
 downloaded, so the two can't drift), `Y.Z` is `IMAGE_REVISION` — `Y` for
-breaking repackaging of the same Traefik, `Z` for fixes that don't. The
-workflow aborts before building any tag that isn't `<version>-Y.Z` (see the repo
-README). `latest` follows `main`.
+breaking repackaging of the same Traefik, `Z` for fixes that don't.
+`<version>-Y` is a rolling tag that always points at the newest `Z` of that
+revision. The workflow aborts before building any tag that isn't `<version>-Y`
+or `<version>-Y.Z` (see the repo README). `latest` follows `main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
@@ -512,8 +513,8 @@ cd traefik && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:${TRAEFIK_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:${TRAEFIK_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 `REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
 variables — override any from the environment

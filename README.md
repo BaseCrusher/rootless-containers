@@ -48,8 +48,8 @@ repo's GitHub Container Registry:
 
 | Tag | Base |
 | --- | --- |
-| `<version>-<image-rev>`, `latest` | the image's own base — no shell, no package manager |
-| `<version>-<image-rev>-debug`, `latest-debug` | same base plus a busybox shell for `docker exec` |
+| `<version>-<image-rev>`, `<version>-Y`, `latest` | the image's own base — no shell, no package manager |
+| `<version>-<image-rev>-debug`, `<version>-Y-debug`, `latest-debug` | same base plus a busybox shell for `docker exec` |
 
 Every image ships a `-debug` flavour. The distroless images get it from the
 `:debug-nonroot` base; `traefik` is built `FROM scratch`, so its debug variant
@@ -57,10 +57,10 @@ copies in Debian's static busybox with the applets symlinked into `/bin`.
 
 ### Tag format
 
-Every non-floating tag is `<version>-Y.Z` and the workflow **aborts before
-building** any image whose tags don't match — see the `Enforce image tag format`
-step in `.github/common/build`. Only `latest` and `dev` (each optionally
-`-debug`) are exempt.
+Every non-floating tag is `<version>-Y.Z` or the rolling `<version>-Y`, and the
+workflow **aborts before building** any image whose tags don't match — see the
+`Enforce image tag format` step in `.github/common/build`. Only `latest` and
+`dev` (each optionally `-debug`) are exempt.
 
 - `<version>` — the packaged upstream software (for coredns, its
   `COREDNS_VERSION`), so the tag says exactly what is inside. Usually
@@ -72,7 +72,8 @@ step in `.github/common/build`. Only `latest` and `dev` (each optionally
   featureset (a base-layer CVE rebuild, a config tweak).
 
 `Y.Z` is the `IMAGE_REVISION` bake variable (default `1.0`); `<version>` is the
-per-image version variable. `latest` follows `main`. Pin to a full
+per-image version variable. `<version>-Y` is a rolling tag that always points at
+the newest `Z` of that revision. `latest` follows `main`. Pin to a full
 `<version>-Y.Z` when a deployment must keep running a known build.
 
 Before anything is built the workflow lints the Dockerfile with

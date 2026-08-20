@@ -387,15 +387,17 @@ acquisition source listens on a port you choose.
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.7.8-1.0`, `:latest` | `static-debian13:nonroot` | no shell, no package manager |
-| `:v1.7.8-1.0-debug`, `:latest-debug` | `static-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
+| `:v1.7.8-1.0`, `:v1.7.8-1`, `:latest` | `static-debian13:nonroot` | no shell, no package manager |
+| `:v1.7.8-1.0-debug`, `:v1.7.8-1-debug`, `:latest-debug` | `static-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
 
 All under `ghcr.io/basecrusher/rootless-containers/crowdsec`. Tags are
 `<version>-Y.Z`: `<version>` is `CROWDSEC_VERSION` (the upstream image the
 binaries are copied from, so the tag and what is inside cannot drift), `Y.Z` is
 `IMAGE_REVISION` — `Y` for breaking repackaging of the same CrowdSec, `Z` for
-fixes that don't. The workflow aborts before building any tag that isn't
-`<version>-Y.Z` (see the repo README). `latest` follows `main`.
+fixes that don't. `<version>-Y` is a rolling tag that always points at the
+newest `Z` of that revision. The workflow aborts before building any tag that
+isn't `<version>-Y` or `<version>-Y.Z` (see the repo README). `latest` follows
+`main`.
 
 The workflow lints the Dockerfile with droast before building and scans the
 pushed image with Trivy afterwards, failing on any fixable `HIGH` or `CRITICAL`
@@ -410,8 +412,8 @@ cd crowdsec && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
-| `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:${CROWDSEC_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
+| `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSEC_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 `REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
 variables — override any from the environment
