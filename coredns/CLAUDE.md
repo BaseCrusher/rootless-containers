@@ -27,12 +27,17 @@ and the order of the plugin chain:
 `plugin.cfg` order is request-handling order, so placement is what makes these
 plugins work at all. Each anchor is taken straight from the plugin's own README:
 
-- **acmednschallenge** — `before: file`. Its README says "above `file` and
-  `forward`"; it only intercepts `_acme-challenge` TXT queries and passes
-  everything else on, so a zone plugin running first breaks issuance.
-- **records** — `after: hosts`. Its README states "the *host* plugin is
-  configured before *records* in `plugin.cfg`, which means that when both are
-  being specified in a server block, the *host* plugin will get preference."
+- **acmednschallenge** — `before: records`. Its README says "above `file` and
+  `forward`", but that predates carrying a zone plugin (`records`) that sits
+  *above* `file`. It only intercepts `_acme-challenge` TXT queries and passes
+  everything else on, so it must run before **every** authoritative resolver, or
+  that resolver answers the challenge query (NXDOMAIN/NODATA, no fallthrough)
+  before acmednschallenge sees it — normal records still resolve, only issuance
+  breaks. `records` is the topmost such resolver, so acmednschallenge anchors
+  directly above it. Its `plugins.json` entry must therefore come *after*
+  `records`, so the `records:` line already exists when this one is placed.
+- **records** — `before: template`, above `hosts`/`file`, so it is authoritative
+  ahead of the upstream zone plugins.
 
 Anchor on the plugin the constraint actually names, not on a neighbour that
 happens to sit in the right place — a neighbour can move upstream while still
@@ -46,8 +51,8 @@ means signed responses are cached instead of re-signed on every hit.
 The resulting chain, upstream entries elided:
 
 ```
-… cache … dnssec … hosts, records, route53 … kubernetes,
-acmednschallenge, file, auto, secondary, etcd, loop, forward …
+… cache … dnssec … acmednschallenge, records, template … hosts,
+route53 … kubernetes, traefik, file, auto, secondary, etcd, loop, forward …
 ```
 
 Adding a plugin means adding one object to `plugins.json` — no Dockerfile
