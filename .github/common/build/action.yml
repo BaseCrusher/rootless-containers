@@ -17,7 +17,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: immanuwell/dockerfile-roast@1.6.0
+    - uses: immanuwell/dockerfile-roast@1.6.1
       with:
         files: ${{ inputs.container }}/Dockerfile
         preset: production
