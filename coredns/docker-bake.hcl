@@ -7,13 +7,18 @@ variable "COREDNS_VERSION" {
   default = "v1.14.7"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/coredns-envvar-corefile
+variable "COREFILE_GEN_VERSION" {
+  default = "v1.1.0"
+}
+
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
   default = "v1.4.2"
 }
 
 variable "IMAGE_REVISION" {
-  default = "2.0"
+  default = "2.1"
 }
 
 group "default" {
@@ -24,8 +29,9 @@ target "coredns" {
   context    = "."
   dockerfile = "Dockerfile"
   args       = {
-    COREDNS_VERSION    = COREDNS_VERSION
-    SUPERVISOR_VERSION = SUPERVISOR_VERSION
+    COREDNS_VERSION       = COREDNS_VERSION
+    COREFILE_GEN_VERSION  = COREFILE_GEN_VERSION
+    SUPERVISOR_VERSION    = SUPERVISOR_VERSION
   }
   tags       = [
     "${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}",

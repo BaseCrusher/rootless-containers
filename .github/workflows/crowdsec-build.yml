@@ -1,27 +1,34 @@
 name: crowdsec-build
 
 on:
-  schedule:
-    - cron: '15 4 * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - crowdsec/**
-      - .github/workflows/crowdsec-build.yml
-      - .github/common/**
+      - crowdsec/docker-bake.hcl
   pull_request:
     paths:
-      - crowdsec/**
-      - .github/workflows/crowdsec-build.yml
-      - .github/common/**
+      - crowdsec/docker-bake.hcl
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        uses: ./.github/common/tag-exists
+        with:
+          container: crowdsec
+
   build:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.exists != 'true' || github.event_name != 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -35,3 +42,7 @@ jobs:
         with:
           image: crowdsec:latest
           warn-files: usr/local/bin/crowdsec,usr/local/bin/cscli
+      - uses: ./.github/common/tag
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          container: crowdsec

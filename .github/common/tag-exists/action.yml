@@ -1,0 +1,38 @@
+name: tag-exists
+description: Resolve the versioned git tag <container>-<image-version> from docker-bake.hcl and report whether it already exists on the remote.
+
+inputs:
+  container:
+    description: Container folder to resolve the tag for.
+    required: true
+
+outputs:
+  tag:
+    description: The resolved git tag.
+    value: ${{ steps.resolve.outputs.tag }}
+  exists:
+    description: 'true if the tag already exists on the remote.'
+    value: ${{ steps.resolve.outputs.exists }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      working-directory: ${{ inputs.container }}
+      run: |
+        ref=$(docker buildx bake -f docker-bake.hcl --print 2>/dev/null \
+          | jq -r '.target[].tags[]' \
+          | grep -E ':.+-[0-9]+\.[0-9]+$' \
+          | head -1)
+        if [[ -z "$ref" ]]; then
+          echo "::error::no versioned image tag found in docker-bake.hcl"
+          exit 1
+        fi
+        tag="${{ inputs.container }}-${ref##*:}"
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi

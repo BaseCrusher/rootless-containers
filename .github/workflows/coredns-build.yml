@@ -1,27 +1,34 @@
 name: coredns-build
 
 on:
-  schedule:
-    - cron: '0 4 * * *'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - coredns/**
-      - .github/workflows/coredns-build.yml
-      - .github/common/**
+      - coredns/docker-bake.hcl
   pull_request:
     paths:
-      - coredns/**
-      - .github/workflows/coredns-build.yml
-      - .github/common/**
+      - coredns/docker-bake.hcl
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        uses: ./.github/common/tag-exists
+        with:
+          container: coredns
+
   build:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.exists != 'true' || github.event_name != 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,3 +41,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         with:
           image: coredns:latest
+      - uses: ./.github/common/tag
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          container: coredns

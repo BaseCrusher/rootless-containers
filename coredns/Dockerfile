@@ -6,8 +6,7 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG TARGETVARIANT
 ARG COREDNS_VERSION
-# renovate: datasource=github-releases depName=BaseCrusher/coredns-envvar-corefile
-ARG COREFILE_GEN_VERSION=v1.0.4
+ARG COREFILE_GEN_VERSION
 ARG SUPERVISOR_VERSION
 
 WORKDIR /coredns
