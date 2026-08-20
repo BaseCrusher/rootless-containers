@@ -47,5 +47,5 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         with:
           container: traefik
-          app-id: ${{ vars.EXTRA_ADMIN_APP_ID }}
+          client-id: ${{ vars.EXTRA_ADMIN_CLIENT_ID }}
           private-key: ${{ secrets.EXTRA_ADMIN_PRIVATE_KEY }}
