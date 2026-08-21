@@ -71,7 +71,7 @@ workflow **aborts before building** any image whose tags don't match — see the
 - `Z` — the image revision's **minor**: bump it for fixes that keep the current
   featureset (a base-layer CVE rebuild, a config tweak).
 
-`Y.Z` is the `IMAGE_REVISION` bake variable (default `1.0`); `<version>` is the
+`Y.Z` is the `IMAGE_REVISION` bake variable (default `1.1`); `<version>` is the
 per-image version variable. `<version>-Y` is a rolling tag that always points at
 the newest `Z` of that revision. `latest` follows `main`. Pin to a full
 `<version>-Y.Z` when a deployment must keep running a known build.

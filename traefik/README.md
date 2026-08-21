@@ -463,7 +463,13 @@ thing touching the socket, and it never has to run in this image.
   so `docker logs` shows `[traefik    ] …` and `[certwatcher] …` rather than
   stock Traefik format. Anything parsing the logs has to strip the prefix.
   `access-log-exporter` is the exception — it runs with `hide_label: true` so
-  echoed access lines stay unprefixed.
+  echoed access lines stay unprefixed. The two 5s tickers (`certwatcher`,
+  `access-log-exporter`) each set `loglevel: warn` in `supervisor.yml`, which
+  mutes the supervisor's own `INF starting process` / `process exited
+  successfully` lifecycle lines for those processes (noise every 5s) without
+  touching their own output or the `traefik` service's INF logs. Override per
+  process with `SUPERVISOR_PROCESSES__CERTWATCHER__LOGLEVEL` /
+  `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__LOGLEVEL` (`info` restores them).
 - **No timezone database.** Go falls back to UTC, so logs and time-based
   middleware are in UTC regardless of `TZ`.
 - **No `/etc/passwd`.** The container runs as numeric uid/gid `65532`, which is
@@ -516,7 +522,7 @@ cd traefik && docker buildx bake
 | `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:${TRAEFIK_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:${TRAEFIK_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.1`) are bake
 variables — override any from the environment
 (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 

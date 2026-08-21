@@ -95,6 +95,27 @@ func TestWriteRendersTemplate(t *testing.T) {
 	}
 }
 
+func TestWriteOmitsTLSBlockWhenNoCerts(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "certs.yml")
+
+	tmpl, err := template.ParseFiles("../certs.tmpl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(output, tmpl, nil, "empty"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "# certwatcher empty\n"; string(got) != want {
+		t.Errorf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
 // The output carries the fingerprint it was written from, so a run that finds the
 // same certificates rewrites nothing — the state a long-running watcher used to
 // keep in memory now survives across the runs of a ticker.

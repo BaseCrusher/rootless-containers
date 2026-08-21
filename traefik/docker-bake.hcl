@@ -9,11 +9,11 @@ variable "TRAEFIK_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.4.2"
+  default = "v1.7.0"
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.0"
+  default = "1.1"
 }
 
 group "default" {

@@ -415,7 +415,7 @@ cd crowdsec && docker buildx bake
 | `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:${CROWDSEC_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSEC_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.0`) are bake
+`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.1`) are bake
 variables — override any from the environment
 (`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
 compiled and nothing is emulated: the binaries come from the upstream image for
