@@ -522,7 +522,7 @@ cd traefik && docker buildx bake
 | `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:${TRAEFIK_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:${TRAEFIK_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.1`) are bake
+`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.2`) are bake
 variables — override any from the environment
 (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 

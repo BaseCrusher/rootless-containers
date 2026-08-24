@@ -14,11 +14,11 @@ variable "COREFILE_GEN_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.7.0"
+  default = "v1.8.0"
 }
 
 variable "IMAGE_REVISION" {
-  default = "5.1"
+  default = "5.2"
 }
 
 group "default" {
