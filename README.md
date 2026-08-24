@@ -16,6 +16,13 @@ runs as an unprivileged user, not root.
   own `config.yaml` (a ConfigMap) to change settings, a `cscli` slot in
   `container-supervisor` runs one bootstrap command before the agent starts, and
   `docker exec cscli …` does the rest. Notification plugins are not included.
+- [valkey](valkey/) — Valkey on distroless: the upstream `valkey-server` and
+  `valkey-cli` binaries copied out of `valkey/valkey` (the Debian, glibc image),
+  with only the four libraries the base lacks (`libsystemd`, `libcap`, `libz`,
+  `libzstd`) `ldd`-resolved alongside them. Runs as `nonroot` from the start, so
+  the official `docker-entrypoint.sh` — whose job is to drop from root — is
+  dropped with it. No baked config; pass flags as container arguments or mount a
+  `valkey.conf`.
 - [traefik](traefik/) — Traefik on `scratch`: the upstream release binary, a CA
   bundle and nothing else. Binds ports 80/443 without root via
   `cap_net_bind_service`; the Docker provider goes through
