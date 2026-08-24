@@ -14,8 +14,8 @@ the `COPY` takes its binaries. `config` is pinned to `$BUILDPLATFORM` because it
 runs `yq` and `wget`, and emulating that would be pointless: everything it
 touches — the hub YAML, the GeoLite2 databases, `config.yaml` — is
 architecture-independent. `wget` and `yq` are both already in the upstream image,
-so no third stage is needed to download container-supervisor and envelope — both
-are fetched for `$TARGETARCH$TARGETVARIANT`, not for the build platform.
+so no third stage is needed to download container-supervisor — fetched for
+`$TARGETARCH$TARGETVARIANT`, not for the build platform.
 
 ## The paths cannot move
 
@@ -71,21 +71,13 @@ edits move together or not at all.
   disables CAPI while the file has no `login`, and picks it up once
   `cscli capi register -f` fills it in, so enabling CAPI needs no config edit.
 
-## Startup: config, register, then CrowdSec
+## Startup: register, then CrowdSec
 
 `container-supervisor` is the entrypoint, with `supervisor.yml` baked in at its
-default config path:
+default config path. Runtime configuration is a mounted file
+(`config.yaml`/`config.yaml.local`), so there is no `config` process — CrowdSec
+reads whatever is on disk directly.
 
-- `config` — `one_shot`, `envelope -prefix CROWDSEC_CONFIG_ -out
-  /etc/crowdsec/config.yaml.local`. The `.local` file is CrowdSec's own overwrite
-  mechanism, so nothing here rewrites `config.yaml` and a build-time edit can
-  still be overridden at runtime. It runs before `register`, not just before
-  `crowdsec`, because `cscli` reads the same merged configuration — an override
-  of `db_config` or `api.server` has to apply to the machine registration too.
-  With no matching variable envelope writes `{}`, which merges to nothing;
-  failure is *not* tolerated (no `on_failure: continue`), so an unknown or
-  wrong-case key aborts the start with `field X not found in type
-  csconfig.Config` instead of silently dropping the setting.
 - `register` — `one_shot`, `cscli machines add localhost --auto --force`. This is
   what upstream's script guards with a "already registered?" check; `--force`
   makes the guard unnecessary, and re-registering at every start is harmless

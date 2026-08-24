@@ -11,7 +11,7 @@ no package manager, no `docker_start.sh`.
 | Base | Alpine | `gcr.io/distroless/static-debian13` |
 | User | `root` | uid/gid `65532` |
 | PID 1 | `bash /docker_start.sh` | `container-supervisor` |
-| Configuration | ~60 env vars read by that script | `CROWDSEC_CONFIG_*` env vars, `acquis.d`, `cscli` |
+| Configuration | ~60 env vars read by that script | mounted `config.yaml`, `acquis.d`, `cscli` |
 | Notification plugins | included | not included |
 | `source: docker` acquisition | works | not possible — [why](#source-docker-does-not-work-here) |
 | Shell, `bash`, `rsync`, `yq` | present | none |
@@ -30,7 +30,7 @@ image does not ship. What it did at every start, you do once — see
 What upstream's script did unconditionally is already done here: the
 configuration directory is populated (baked, not rsynced from `/staging`) and
 the local agent is registered at every start by `container-supervisor`. What it
-drove from env vars, `CROWDSEC_CONFIG_*` does for `config.yaml` — see
+drove from env vars, a mounted `config.yaml` does — see
 [Configuration](#configuration).
 
 ## What's inside
@@ -39,7 +39,6 @@ drove from env vars, `CROWDSEC_CONFIG_*` does for `config.yaml` — see
 | --- | --- | --- |
 | `crowdsec`, `cscli` | [crowdsecurity/crowdsec](https://github.com/crowdsecurity/crowdsec) | `CROWDSEC_VERSION` — copied out of `crowdsecurity/crowdsec:$CROWDSEC_VERSION` |
 | container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
-| envelope | [envelope](https://github.com/BaseCrusher/envelope) | `ENVELOPE_VERSION` |
 
 Preloaded from the official image: the hub index, the `crowdsecurity/linux`
 collection (syslog, sshd, its scenarios), `crowdsecurity/whitelists`,
@@ -178,17 +177,10 @@ to declare `register` and `crowdsec` again as well:
 hide_labels: true
 
 processes:
-  config:
-    path: /usr/local/bin/envelope
-    arguments: ["-prefix", "CROWDSEC_CONFIG_", "-out", "/etc/crowdsec/config.yaml.local"]
-    type: one_shot
   register:
     path: /usr/local/bin/cscli
     arguments: ["machines", "add", "localhost", "--auto", "--force"]
     type: one_shot
-    depends_on:
-      config:
-        exit: success
   collections:
     path: /usr/local/bin/cscli
     arguments: ["collections", "install", "crowdsecurity/traefik"]
@@ -252,36 +244,34 @@ made at build time:
 Everything else is stock, including `listen_uri: 0.0.0.0:8080`, sqlite, and the
 Prometheus endpoint on `6060`.
 
-### `CROWDSEC_CONFIG_*` env vars
+### Overriding settings with a mounted file
 
-CrowdSec reads no env vars of its own, but it does read
-`/etc/crowdsec/config.yaml.local` — an *overwrite* file whose values take
-precedence over `config.yaml`. That file is written at every start by
-[envelope](https://github.com/BaseCrusher/envelope), which turns the
-`CROWDSEC_CONFIG_`-prefixed environment into YAML, so a mounted configuration
-file is not needed to change a setting:
+Nothing here rewrites `config.yaml` at start, so to change a setting you mount
+your own file over it — a Kubernetes ConfigMap, a Swarm config, or a bind mount.
+CrowdSec reads two files: `config.yaml`, and `config.yaml.local` — an
+*overwrite* file whose values take precedence. Mount over either:
 
 ```yaml
-services:
-  crowdsec:
-    image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
-    environment:
-      CROWDSEC_CONFIG_common__log_level: debug
-      CROWDSEC_CONFIG_api__server__listen_uri: 0.0.0.0:9999
-      CROWDSEC_CONFIG_db_config__use_wal: true
-```
-
-becomes
-
-```yaml
-# /etc/crowdsec/config.yaml.local
-api:
-    server:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crowdsec-config
+data:
+  config.yaml.local: |
+    api:
+      server:
         listen_uri: 0.0.0.0:9999
-common:
-    log_level: debug
-db_config:
-    use_wal: true
+    common:
+      log_level: debug
+    db_config:
+      use_wal: true
+---
+# in the pod spec
+volumeMounts:
+  - name: crowdsec-config
+    mountPath: /etc/crowdsec/config.yaml.local
+    subPath: config.yaml.local
+    readOnly: true
 ```
 
 and CrowdSec says so on startup:
@@ -290,33 +280,14 @@ and CrowdSec says so on startup:
 level=info msg="Loading yaml file: '/etc/crowdsec/config.yaml' with additional values from '/etc/crowdsec/config.yaml.local'"
 ```
 
-- **`__` (double underscore) descends a level**, a single `_` is an ordinary
-  character — which is why `db_config__type` is `db_config: {type: …}`. A segment
-  of digits is a list index (`A__0`, `A__1`); see envelope's
-  [naming](https://github.com/BaseCrusher/envelope#naming) for the full grammar,
-  including lists of mappings.
-- **Keys keep the case you write.** CrowdSec's keys are lowercase, so the part
-  after the prefix has to be lowercase too. `CROWDSEC_CONFIG_COMMON__LOG_LEVEL`
-  produces a `COMMON` key and CrowdSec refuses to start:
-  `field COMMON not found in type csconfig.Config`. The same happens for a
-  misspelled key, which makes a typo loud rather than silent.
-- **Values are typed** the way YAML types them: `8080` is an int, `true` a bool,
-  `"8080"` (quoted inside the value) a string.
-- The prefix is `CROWDSEC_CONFIG_`, not `CROWDSEC_`, because Kubernetes injects
-  `CROWDSEC_PORT`, `CROWDSEC_SERVICE_HOST` and friends into every pod in the
-  namespace as soon as a Service is named `crowdsec` — with the shorter prefix
-  those would land in the configuration and be fatal.
-- Overrides **merge** into mappings but **replace** sequences whole, and a key
-  cannot be *removed* this way, only set to another value — that is CrowdSec's
-  [`.local` mechanism](https://docs.crowdsec.net/docs/configuration/crowdsec_configuration/),
-  not envelope's doing.
-
-With no such variable set the file is written as `{}`, which changes nothing.
-Mounting your own `config.yaml.local` therefore does not work — it is
-overwritten, or the start fails if the mount is read-only. Mount over
-`config.yaml` instead, or drop the `config` process:
-`SUPERVISOR_PROCESSES__CONFIG__ENABLED=false` together with
-`SUPERVISOR_PROCESSES__REGISTER__DEPENDS_ON__CONFIG__EXIT=any`.
+- Use `config.yaml.local` to override a handful of keys and keep the baked
+  defaults for the rest; mount over `config.yaml` to replace the file wholesale.
+- Overrides in `.local` **merge** into mappings but **replace** sequences whole,
+  and a key cannot be *removed* this way, only set to another value — that is
+  CrowdSec's
+  [`.local` mechanism](https://docs.crowdsec.net/docs/configuration/crowdsec_configuration/).
+- Use a `subPath` mount (as above) so only the one file is replaced and the rest
+  of `/etc/crowdsec` — the baked hub symlinks and credentials — stays intact.
 
 ### Notification plugins are not included
 

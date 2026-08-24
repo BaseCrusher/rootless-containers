@@ -9,7 +9,6 @@ FROM --platform=$BUILDPLATFORM crowdsecurity/crowdsec:${CROWDSEC_VERSION:?} AS c
 ARG TARGETARCH
 ARG TARGETVARIANT
 ARG SUPERVISOR_VERSION
-ARG ENVELOPE_VERSION
 
 WORKDIR /staging
 
@@ -27,13 +26,9 @@ RUN wget -q -O container-supervisor \
     https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
 
-RUN wget -q -O envelope \
-    https://github.com/BaseCrusher/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
-    && chmod +x envelope
-
 FROM $BASE_IMAGE
 COPY --from=upstream /usr/local/bin/crowdsec /usr/local/bin/cscli /usr/local/bin/
-COPY --from=config /staging/container-supervisor /staging/envelope /usr/local/bin/
+COPY --from=config /staging/container-supervisor /usr/local/bin/
 COPY --from=config --chown=65532:65532 /staging/etc/crowdsec/ /etc/crowdsec/
 COPY --from=config --chown=65532:65532 /staging/var/lib/crowdsec/ /var/lib/crowdsec/
 COPY supervisor.yml /container-supervisor/config.yml
