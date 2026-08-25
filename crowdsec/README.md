@@ -80,11 +80,18 @@ its parsers:
 
 ```yaml
         env:
-          - name: SUPERVISOR_PROCESSES__CSCLI__ENABLED
-            value: "true"
+          - name: SUPERVISOR_PROCESSES__CSCLI__PATH
+            value: /usr/local/bin/cscli
+          - name: SUPERVISOR_PROCESSES__CSCLI__TYPE
+            value: one_shot
           - name: SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS
             value: hub upgrade
+          - name: SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT
+            value: any
 ```
+
+This defines the process from env vars — there is no `cscli` slot in the
+shipped `supervisor.yml`; see [Declaratively, without exec](#declaratively-without-exec).
 
 ### Acquisition
 
@@ -147,27 +154,46 @@ it is gone the next time the container is recreated.
 
 ### Declaratively, without exec
 
-`container-supervisor` runs one `cscli` command of your choice before CrowdSec
-starts. The `cscli` process is in `supervisor.yml` as a disabled placeholder;
-enable it and give it arguments:
+`container-supervisor` can run one `cscli` command of your choice before
+CrowdSec starts, so a hub item, bouncer or collection is in place for the same
+start rather than the next one. There is no such process in `supervisor.yml` by
+default — the shipped file is `register` plus `crowdsec` and nothing else — but
+env vars can **define a new process from scratch**, not only override an
+existing one. Declare it and wire CrowdSec to wait for it:
 
 ```yaml
 services:
   crowdsec:
     image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
     environment:
-      SUPERVISOR_PROCESSES__CSCLI__ENABLED: "true"
+      SUPERVISOR_PROCESSES__CSCLI__PATH: /usr/local/bin/cscli
+      SUPERVISOR_PROCESSES__CSCLI__TYPE: one_shot
       SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS: collections install crowdsecurity/traefik
+      SUPERVISOR_PROCESSES__CSCLI__ON_FAILURE: continue
+      SUPERVISOR_PROCESSES__CSCLI__DEPENDS_ON__REGISTER__EXIT: success
+      SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT: any
     volumes:
       - csdata:/var/lib/crowdsec/data
       - csconfig:/etc/crowdsec
 ```
 
-Arguments are split on whitespace, so quoting inside that value does nothing —
-one word per argument. CrowdSec starts only after this exits, whatever the
-exit code (`on_failure: continue`), so a hub item installed here is loaded in
-the same start rather than the next one. Installing needs network: the baked hub
-index carries no item content.
+Each line does one job:
+
+- `PATH` / `TYPE` / `ARGUMENTS` — the process itself. Arguments are split on
+  whitespace, so quoting inside that value does nothing; one word per argument.
+  For an argument that must contain a space, number the entries instead
+  (`SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS__0=…`, `__1=…`).
+- `ON_FAILURE: continue` — a command that fails (re-installing an existing item)
+  does not abort the start.
+- `DEPENDS_ON__REGISTER__EXIT: success` — run after `register`, so the machine
+  and database exist first (`bouncers add` needs them).
+- `SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT: any` — the one that
+  makes it useful. It **merges** into `crowdsec`'s existing `depends_on`, so
+  CrowdSec now waits for both `register` and `cscli`; without it CrowdSec would
+  start in parallel and the item would only take effect next boot. `exit: any`
+  so a failed bootstrap does not block CrowdSec.
+
+Installing needs network: the baked hub index carries no item content.
 
 For **more than one** command, mount your own supervisor configuration over
 `/container-supervisor/config.yml`. It replaces the file in the image, so it has
@@ -332,6 +358,42 @@ Both are needed: a disabled process counts as a failure to anything that
 `depends_on` it, so without the second variable CrowdSec is skipped and the
 container exits. Disable the local API itself in `config.yaml`
 (`api.server.enable: false`).
+
+### Multiple instances on a shared database
+
+`register` runs `cscli machines add localhost --auto --force`, and `localhost`
+is a fixed name. That is fine for one container: `--force` just rewrites its own
+row every start. Scale to several instances against **one shared database**
+(Postgres or MySQL via `config.yaml`'s `db_config`, every instance reaching it
+directly) and they all register the *same* name — each start rewrites that one
+row's credentials, the last to boot wins, and every other agent is left holding
+stale credentials that no longer authenticate.
+
+`cscli machines add` writes straight to the database, so the fix is only to give
+each instance a **unique** name — no image change:
+
+```yaml
+        env:
+          - name: SUPERVISOR_PROCESSES__REGISTER__ARGUMENTS
+            value: machines add $(POD_NAME) --auto --force
+```
+
+The override is a literal argument list, not a shell — it does not expand a
+variable itself. Resolve the name where the orchestrator can (Kubernetes
+downward API into `POD_NAME`, a Compose replica index, the container name) and
+pass the resolved value in. Each instance then owns its own row, and `--force`
+only ever rewrites that one.
+
+Two things that shared database changes, unrelated to the name:
+
+- **First-boot schema race.** On a brand-new empty database, N instances all
+  running `machines add` at once each try to create the schema. Bring up one
+  instance first (or run `cscli` against the database once), then scale out.
+  Concurrent registers against an existing schema are fine.
+- **Bootstrap once, not per replica.** The [`cscli` slot](#declaratively-without-exec)
+  writes to the same shared database from every instance — `bouncers add traefik`
+  on all of them collides exactly the way `localhost` did. Enable it on a single
+  init instance, or give each a unique bouncer name.
 
 ## Distroless caveats
 

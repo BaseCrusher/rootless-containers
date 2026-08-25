@@ -83,18 +83,23 @@ reads whatever is on disk directly.
   makes the guard unnecessary, and re-registering at every start is harmless
   because it rewrites both the row and the credentials file. Creating the sqlite
   database is a side effect of it.
-- `cscli` — `one_shot`, `enabled: false`, `on_failure: continue`. A generic slot
-  for one bootstrap command (`collections install …`, `bouncers add …`,
-  `hub upgrade`), overridable from the environment because container-supervisor
-  splits `SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS` on whitespace into the
-  argument list. A comma-separated or JSON-looking value arrives as one argument
-  and `cscli` prints its help instead — only whitespace splits.
-- `crowdsec` — `service`, `depends_on` `register: success` **and**
-  `cscli: any`. The second is what makes the slot useful: CrowdSec waits for it,
-  so an item installed there is loaded in the same start. `exit: any` is
-  satisfied by a disabled process, which is why the default (disabled) still
-  starts CrowdSec — a disabled process counts as a *failure*, so `exit: success`
-  there would deadlock the default configuration.
+- `crowdsec` — `service`, `depends_on` `register: success` and nothing else.
+
+There is no baked `cscli` bootstrap slot: it was a disabled placeholder and is
+dropped. An operator that wants one bootstrap command (`collections install …`,
+`bouncers add …`, `hub upgrade`) **defines the whole process from env vars** —
+container-supervisor creates a process that is not in the file, not only
+overrides one that is — and re-adds the `crowdsec → cscli` wait so the item
+loads in the same start (`SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT=any`
+merges into the existing `depends_on`). The README documents the full set.
+`ARGUMENTS` splits on whitespace, so a comma-separated or JSON-looking value
+arrives as one argument and `cscli` prints its help; number the entries
+(`…__ARGUMENTS__0`, `__1`) for an argument that must contain a space.
+
+The `depends_on` graph is validated before anything starts — a dangling
+reference (`crowdsec` depending on a `cscli` that no longer exists) is a *fatal
+startup error*, not a silent skip, which is why removing the slot means removing
+the dependency in the same edit.
 
 `hide_labels: true` drops the `[<process>]` prefix from child output, so
 CrowdSec's log lines reach `docker logs` in stock format. The supervisor's own

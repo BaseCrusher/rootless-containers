@@ -5,20 +5,9 @@ processes:
     path: /usr/local/bin/cscli
     arguments: ["machines", "add", "localhost", "--auto", "--force"]
     type: one_shot
-  cscli:
-    path: /usr/local/bin/cscli
-    arguments: ["hub", "list"]
-    type: one_shot
-    enabled: false
-    on_failure: continue
-    depends_on:
-      register:
-        exit: success
   crowdsec:
     path: /usr/local/bin/crowdsec
     type: service
     depends_on:
       register:
         exit: success
-      cscli:
-        exit: any
