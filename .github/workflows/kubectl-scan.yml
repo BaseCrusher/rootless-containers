@@ -1,4 +1,4 @@
-name: crowdsec-scan
+name: kubectl-scan
 
 on:
   schedule:
@@ -16,5 +16,4 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/common/scan-published
         with:
-          image: crowdsec
-          warn-files: usr/local/bin/crowdsec,usr/local/bin/cscli
+          image: kubectl

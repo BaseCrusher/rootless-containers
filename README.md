@@ -37,6 +37,10 @@ runs as an unprivileged user, not root.
   a local plugin. Configured through
   `TRAEFIK_*` env vars only; flags passed as container arguments do not reach
   Traefik.
+- [kubectl](kubectl/) — `kubectl` on distroless: the upstream static binary
+  copied out of `registry.k8s.io/kubectl` and nothing else — no shell, no
+  package manager. Runs as `nonroot`; mount your kubeconfig at
+  `/home/nonroot/.kube/config`.
 
 ## Usage
 
