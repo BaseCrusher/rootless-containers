@@ -31,7 +31,10 @@ runs as an unprivileged user, not root.
   that turns a directory of certificates — the ones `coredns` issues, say — into
   a dynamic configuration Traefik reloads on its own, and an optional
   `access-log-exporter` that pushes the access log to CrowdSec over HTTP,
-  identically on Swarm and Kubernetes. Configured through
+  identically on Swarm and Kubernetes. The
+  [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin)
+  source is baked in (pinned by `CROWDSEC_PLUGIN_VERSION`) and loaded offline as
+  a local plugin. Configured through
   `TRAEFIK_*` env vars only; flags passed as container arguments do not reach
   Traefik.
 

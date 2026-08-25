@@ -30,6 +30,7 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 ARG TRAEFIK_VERSION
 ARG SUPERVISOR_VERSION
+ARG CROWDSEC_PLUGIN_VERSION
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -50,6 +51,9 @@ COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
 COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./access-log-exporter
 COPY certs.tmpl ./certs.tmpl
 RUN mkdir -p config/dynamic
+RUN mkdir -p plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin \
+    && curl -fsSL https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin/archive/refs/tags/${CROWDSEC_PLUGIN_VERSION:?}.tar.gz \
+    | tar -xz --strip-components=1 -C plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
 
 FROM debian:trixie-slim AS busybox
 

@@ -47,6 +47,7 @@ A static configuration file is `TRAEFIK_CONFIGFILE`, not `--configFile`.
 | container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
 | certwatcher | `certwatcher/` in this folder | built from source with the image |
 | access-log-exporter | `access-log-exporter/` in this folder | built from source with the image |
+| crowdsec-bouncer plugin | [maxlerebourg/crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) | `CROWDSEC_PLUGIN_VERSION` |
 
 ## Usage
 
@@ -407,6 +408,42 @@ keeps the file at 5 seconds of traffic and is the cheapest setting when nothing
 persists the log anyway. `MAX_SIZE=-1` disables it, for a mounted volume with
 its own rotation.
 
+### crowdsec-bouncer plugin — baked in, offline
+
+The [crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin)
+source is shipped inside the image under
+`/home/nonroot/plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin`,
+so it loads with **no runtime download**. Traefik's remote `experimental.plugins`
+config fetches sources into a writable `plugins-storage` at startup, which a
+`scratch` image with no writable layer and no guaranteed network cannot do — the
+equivalent that works here is `localPlugins`, which reads that baked-in tree. The
+plugin version is pinned by the `CROWDSEC_PLUGIN_VERSION` bake variable, not by
+runtime config.
+
+Register it as a local plugin and use it in a middleware. Static config is
+`TRAEFIK_*` env vars here, so:
+
+```yaml
+    environment:
+      TRAEFIK_EXPERIMENTAL_LOCALPLUGINS_crowdsec_MODULENAME: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+```
+
+`crowdsec` is the reference name — keep it dash-free so it survives the env-var
+key path. Then configure a middleware in dynamic configuration, e.g.:
+
+```yaml
+http:
+  middlewares:
+    crowdsec:
+      plugin:
+        crowdsec:
+          crowdsecLapiKey: <bouncer-key>
+          crowdsecLapiHost: crowdsec:8080
+```
+
+See the plugin's own README for the full option set. To use a different plugin
+version, rebuild with `CROWDSEC_PLUGIN_VERSION=vX.Y.Z docker buildx bake`.
+
 ### The Docker provider requires a socket proxy
 
 Do not mount `/var/run/docker.sock` into this image. It is `root:root`, so uid
@@ -522,9 +559,9 @@ cd traefik && docker buildx bake
 | `traefik` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}`, `:${TRAEFIK_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:${TRAEFIK_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `TRAEFIK_VERSION` and `IMAGE_REVISION` (default `1.2`) are bake
-variables — override any from the environment
-(`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
+`REGISTRY`, `TRAEFIK_VERSION`, `SUPERVISOR_VERSION`, `CROWDSEC_PLUGIN_VERSION`
+and `IMAGE_REVISION` (default `1.2`) are bake variables — override any from the
+environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 
 The upstream release tarball is named
 `traefik_<version>_linux_<arch>.tar.gz`, where `<arch>` is

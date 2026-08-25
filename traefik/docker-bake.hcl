@@ -12,8 +12,13 @@ variable "SUPERVISOR_VERSION" {
   default = "v1.8.0"
 }
 
+# renovate: datasource=github-releases depName=maxlerebourg/crowdsec-bouncer-traefik-plugin
+variable "CROWDSEC_PLUGIN_VERSION" {
+  default = "v1.7.1"
+}
+
 variable "IMAGE_REVISION" {
-  default = "1.2"
+  default = "2.0"
 }
 
 group "default" {
@@ -25,8 +30,9 @@ target "traefik" {
   dockerfile = "Dockerfile"
   target     = "final"
   args       = {
-    TRAEFIK_VERSION    = TRAEFIK_VERSION
-    SUPERVISOR_VERSION = SUPERVISOR_VERSION
+    TRAEFIK_VERSION         = TRAEFIK_VERSION
+    SUPERVISOR_VERSION      = SUPERVISOR_VERSION
+    CROWDSEC_PLUGIN_VERSION = CROWDSEC_PLUGIN_VERSION
   }
   tags       = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}",
