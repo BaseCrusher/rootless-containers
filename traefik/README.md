@@ -235,9 +235,16 @@ each keeps its own offset beside its own log file.
 | `ACCESSLOGEXPORTER_STATE` | `<FILE>.offset` | where the byte offset is kept |
 | `ACCESSLOGEXPORTER_BATCH` | `1000` | lines per request; one run loops until it reaches the end of the file |
 | `ACCESSLOGEXPORTER_MAX_SIZE` | `67108864` (64 MiB) | truncate the log above this many bytes; `0` truncates every run, `-1` never truncates |
-| `ACCESSLOGEXPORTER_HEADERS` | — | extra headers, one `Key: Value` per line — see [Multiple headers](#multiple-headers) |
+| `ACCESSLOGEXPORTER_HEADER_KEY` | — | header name for `auth_type: headers`, e.g. `x-api-key` |
+| `ACCESSLOGEXPORTER_HEADER_VALUE` | — | header value; pair with `_KEY` — see [Header auth from a secret](#header-auth-from-a-secret) |
 | `ACCESSLOGEXPORTER_CONTENT_TYPE` | `application/x-ndjson` | request content type |
 | `ACCESSLOGEXPORTER_ECHO` | `false` | also print the lines it reads to stdout |
+
+Every variable above also honours a `_FILE` twin: set
+`ACCESSLOGEXPORTER_HEADER_VALUE_FILE=/run/secrets/api-key` and the value is read
+from that path (trailing whitespace trimmed) instead of the environment, so
+secrets never sit in the process environment. The `_FILE` form wins when both
+are set.
 
 Traefik has to write the access log to a **file** in **JSON**: stdout belongs to
 container-supervisor, so a sibling process cannot read it, and the CrowdSec
@@ -284,38 +291,44 @@ labels:
 
 Authentication is mandatory on CrowdSec's side. `basic_auth` needs nothing here
 beyond the userinfo in `ACCESSLOGEXPORTER_URL`, as above; for
-`auth_type: headers` use `ACCESSLOGEXPORTER_HEADERS: "x-api-key: change-me"` and
-drop it from the URL. The `http` source needs a port of its own — `8080` is
-CrowdSec's own LAPI.
+`auth_type: headers` set `ACCESSLOGEXPORTER_HEADER_KEY: x-api-key` and
+`ACCESSLOGEXPORTER_HEADER_VALUE: change-me`, and drop the userinfo from the URL.
+A `Content-Type` set this way is overwritten by `ACCESSLOGEXPORTER_CONTENT_TYPE`.
+The `http` source needs a port of its own — `8080` is CrowdSec's own LAPI.
 
-#### Multiple headers
+#### Header auth from a secret
 
-`ACCESSLOGEXPORTER_HEADERS` is one `Key: Value` per line, so several headers mean
-a multi-line value — a YAML block scalar in compose and in a manifest:
+Keep the key out of the environment with the `_FILE` twin. In compose, mount a
+secret and point `ACCESSLOGEXPORTER_HEADER_VALUE_FILE` at it:
 
 ```yaml
     environment:
-      ACCESSLOGEXPORTER_HEADERS: |-
-        x-api-key: change-me
-        x-tenant: eu-west
+      ACCESSLOGEXPORTER_HEADER_KEY: x-api-key
+      ACCESSLOGEXPORTER_HEADER_VALUE_FILE: /run/secrets/crowdsec-api-key
+    secrets:
+      - crowdsec-api-key
+
+secrets:
+  crowdsec-api-key:
+    file: ./crowdsec-api-key
 ```
+
+On Kubernetes, mount the `Secret` and read the value from the file, or inject it
+straight into `ACCESSLOGEXPORTER_HEADER_VALUE` with a `secretKeyRef`:
 
 ```yaml
-          - name: ACCESSLOGEXPORTER_HEADERS
-            value: |-
-              x-api-key: change-me
-              x-tenant: eu-west
+        env:
+          - name: ACCESSLOGEXPORTER_HEADER_KEY
+            value: x-api-key
+          - name: ACCESSLOGEXPORTER_HEADER_VALUE
+            valueFrom:
+              secretKeyRef:
+                name: crowdsec-api-key
+                key: value
 ```
 
-From a shell it is
-`-e $'ACCESSLOGEXPORTER_HEADERS=x-api-key: change-me\nx-tenant: eu-west'`.
-Whitespace around the key and value is trimmed, only the first colon splits the
-line so a value may contain more of them, and lines without a colon are ignored.
-Repeating a key overwrites it rather than sending the header twice, and a
-`Content-Type` here is overwritten by `ACCESSLOGEXPORTER_CONTENT_TYPE`.
-
-The variable is read from the container environment, which every process
-inherits. container-supervisor can also scope it to this one process, but only
+The variables are read from the container environment, which every process
+inherits. container-supervisor can also scope them to this one process, but only
 from a config file mounted over `/container-supervisor/config.yml` — and that
 file replaces the one in the image, so it has to declare `traefik` and
 `certwatcher` again as well:
@@ -329,15 +342,14 @@ processes:
     hide_label: true
     on_failure: continue
     environment:
-      ACCESSLOGEXPORTER_HEADERS: |-
-        x-api-key: change-me
-        x-tenant: eu-west
+      ACCESSLOGEXPORTER_HEADER_KEY: x-api-key
+      ACCESSLOGEXPORTER_HEADER_VALUE: change-me
 ```
 
 The `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENVIRONMENT__*` override form does
 **not** work for this: container-supervisor lowercases the whole key path, so the
-process is handed `accesslogexporter_headers` and nothing reads it. Set
-`ACCESSLOGEXPORTER_HEADERS` on the container instead.
+process is handed `accesslogexporter_header_key` and nothing reads it. Set the
+variables on the container instead.
 
 On Kubernetes only the URL changes — no volume, no host path, no sidecar:
 

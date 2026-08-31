@@ -31,7 +31,7 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.LUTC)
 	log.SetPrefix("access-log-exporter: ")
 
-	url := os.Getenv("ACCESSLOGEXPORTER_URL")
+	url := env("ACCESSLOGEXPORTER_URL", "")
 	if url == "" {
 		log.Fatal("ACCESSLOGEXPORTER_URL is required")
 	}
@@ -51,10 +51,10 @@ func main() {
 		state:       env("ACCESSLOGEXPORTER_STATE", file+".offset"),
 		batch:       batch,
 		maxSize:     maxSize,
-		echo:        os.Getenv("ACCESSLOGEXPORTER_ECHO") == "true",
+		echo:        env("ACCESSLOGEXPORTER_ECHO", "") == "true",
 		url:         url,
 		contentType: env("ACCESSLOGEXPORTER_CONTENT_TYPE", "application/x-ndjson"),
-		headers:     parseHeaders(os.Getenv("ACCESSLOGEXPORTER_HEADERS")),
+		headers:     authHeader(),
 		client:      &http.Client{Timeout: 30 * time.Second},
 	}
 	if err := e.run(); err != nil {
@@ -237,19 +237,24 @@ func saveState(path string, shipped, echoed int64) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-func parseHeaders(raw string) http.Header {
+func authHeader() http.Header {
 	headers := http.Header{}
-	for _, line := range strings.Split(raw, "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		headers.Set(strings.TrimSpace(key), strings.TrimSpace(value))
+	if key := env("ACCESSLOGEXPORTER_HEADER_KEY", ""); key != "" {
+		headers.Set(key, env("ACCESSLOGEXPORTER_HEADER_VALUE", ""))
 	}
 	return headers
 }
 
+// env returns the value of key, or the contents of the file named by key+"_FILE"
+// when that is set (Docker/Kubernetes secrets), or fallback.
 func env(key, fallback string) string {
+	if path := os.Getenv(key + "_FILE"); path != "" {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			log.Fatalf("%s_FILE: %v", key, err)
+		}
+		return strings.TrimSpace(string(b))
+	}
 	if value := os.Getenv(key); value != "" {
 		return value
 	}

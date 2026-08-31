@@ -121,6 +121,19 @@ func captureStdout(t *testing.T) func() string {
 	}
 }
 
+func TestEnvReadsFileVariantAndTrims(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(path, []byte("s3cr3t\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ACCESSLOGEXPORTER_HEADER_VALUE_FILE", path)
+	t.Setenv("ACCESSLOGEXPORTER_HEADER_VALUE", "ignored")
+
+	if got := env("ACCESSLOGEXPORTER_HEADER_VALUE", "fallback"); got != "s3cr3t" {
+		t.Errorf("env = %q, want the trimmed file contents", got)
+	}
+}
+
 func TestMissingFileAndEmptyTickSendNothing(t *testing.T) {
 	f := newFixture(t)
 
