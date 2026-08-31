@@ -9,7 +9,7 @@ variable "COREDNS_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/coredns-envvar-corefile
 variable "COREFILE_GEN_VERSION" {
-  default = "v1.1.0"
+  default = "v1.1.1"
 }
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
@@ -18,7 +18,7 @@ variable "SUPERVISOR_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "5.2"
+  default = "5.3"
 }
 
 group "default" {
