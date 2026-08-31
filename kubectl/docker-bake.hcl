@@ -4,11 +4,11 @@ variable "REGISTRY" {
 
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 variable "KUBECTL_VERSION" {
-  default = "v1.36.4"
+  default = "v1.7.0"
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.0"
+  default = "1.1"
 }
 
 group "default" {
