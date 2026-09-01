@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=gcr.io/distroless/base-debian13:nonroot
-ARG VALKEY_VERSION=9.1.1
+ARG VALKEY_VERSION=9.1.2
 
 FROM valkey/valkey:${VALKEY_VERSION:?} AS upstream
 
