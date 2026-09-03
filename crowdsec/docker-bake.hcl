@@ -9,7 +9,7 @@ variable "CROWDSEC_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.8.0"
+  default = "v1.9.0"
 }
 
 variable "IMAGE_REVISION" {
