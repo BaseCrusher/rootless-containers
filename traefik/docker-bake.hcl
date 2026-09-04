@@ -4,7 +4,7 @@ variable "REGISTRY" {
 
 # renovate: datasource=github-releases depName=traefik/traefik
 variable "TRAEFIK_VERSION" {
-  default = "v3.7.12"
+  default = "v3.7.13"
 }
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
