@@ -1,13 +1,45 @@
 hide_labels: true
 
 processes:
+  load_secrets:
+    type: prepare_secrets
   register:
     path: /usr/local/bin/cscli
     arguments: ["machines", "add", "localhost", "--auto", "--force"]
     type: one_shot
+    depends_on:
+      load_secrets:
+        exit: any
+  install_collections:
+    path: /usr/local/bin/cscli
+    type: one_shot
+    on_failure: continue
+    depends_on:
+      load_secrets:
+        exit: any
+  config:
+    path: /usr/local/bin/envelope
+    arguments: ["-prefix", "CROWDSEC_CONFIG_", "-out", "/etc/crowdsec/config.yaml.local"]
+    type: one_shot
+    enabled: false
+    depends_on:
+      load_secrets:
+        exit: any
   crowdsec:
     path: /usr/local/bin/crowdsec
     type: service
     depends_on:
+      load_secrets:
+        exit: any
       register:
         exit: success
+      install_collections:
+        exit: any
+      config:
+        exit: any
+  upgrade_collections:
+    path: /usr/local/bin/cscli
+    arguments: ["collections", "upgrade", "--all"]
+    type: cron
+    cron: "0 3 * * *"
+    on_failure: continue

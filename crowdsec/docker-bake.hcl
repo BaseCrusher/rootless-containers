@@ -9,11 +9,16 @@ variable "CROWDSEC_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.8.0"
+  default = "v1.9.1"
+}
+
+# renovate: datasource=github-releases depName=BaseCrusher/envelope
+variable "ENVELOPE_VERSION" {
+  default = "v1.1.1"
 }
 
 variable "IMAGE_REVISION" {
-  default = "3.0"
+  default = "3.1"
 }
 
 group "default" {
@@ -26,6 +31,7 @@ target "crowdsec" {
   args       = {
     CROWDSEC_VERSION   = CROWDSEC_VERSION
     SUPERVISOR_VERSION = SUPERVISOR_VERSION
+    ENVELOPE_VERSION   = ENVELOPE_VERSION
   }
   tags       = [
     "${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}",

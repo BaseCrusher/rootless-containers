@@ -14,8 +14,10 @@ the `COPY` takes its binaries. `config` is pinned to `$BUILDPLATFORM` because it
 runs `yq` and `wget`, and emulating that would be pointless: everything it
 touches — the hub YAML, the GeoLite2 databases, `config.yaml` — is
 architecture-independent. `wget` and `yq` are both already in the upstream image,
-so no third stage is needed to download container-supervisor — fetched for
-`$TARGETARCH$TARGETVARIANT`, not for the build platform.
+so no third stage is needed to download container-supervisor and `envelope` —
+both fetched for `$TARGETARCH$TARGETVARIANT` (their linux arm/v7 asset is named
+`…-armv7`, so the same suffix that works for the supervisor works for envelope),
+not for the build platform.
 
 ## The paths cannot move
 
@@ -32,6 +34,12 @@ CrowdSec starts with nothing loaded rather than failing. `/etc/crowdsec` and
 `/var/lib/crowdsec` therefore stay where upstream puts them and are `COPY
 --chown=65532:65532`'d instead, which also keeps upstream's documentation and
 volume paths valid.
+
+`/container-supervisor/supervisor_environment` — the supervisor's `env_dir`, where
+`load_secrets` writes materialised secrets — is `COPY --chown=65532:65532`'d as an
+empty directory (created with `mkdir` in the `config` stage) for the same reason:
+`/container-supervisor` is root-owned (the `config.yml` copy makes it so), and the
+process writes there as uid 65532 on every start.
 
 The content is copied from `/staging/etc/crowdsec` and
 `/staging/var/lib/crowdsec` in the upstream image, but the `/staging` mechanism
@@ -74,32 +82,77 @@ edits move together or not at all.
 ## Startup: register, then CrowdSec
 
 `container-supervisor` is the entrypoint, with `supervisor.yml` baked in at its
-default config path. Runtime configuration is a mounted file
-(`config.yaml`/`config.yaml.local`), so there is no `config` process — CrowdSec
-reads whatever is on disk directly.
+default config path. Runtime configuration is a file on disk
+(`config.yaml`/`config.yaml.local`) that CrowdSec reads directly; the `config`
+process only *writes* the `.local` overlay from env and is off by default, so by
+default nothing here templates `config.yaml` — it is used as mounted.
 
+- `load_secrets` — `prepare_secrets`, the built-in supervisor type (1.9.1), first
+  and enabled by default. For every `NAME_FILE` env var pointing at a path it reads
+  the file and writes `env_dir/NAME`, which the supervisor auto-loads into every
+  later process's environment — the Docker `*_FILE` convention that `cscli`,
+  `crowdsec` and `envelope` do not implement themselves. With no `_FILE` vars set
+  it writes nothing and exits 0, a no-op. Every start-time process and `crowdsec`
+  `depends_on` it `exit: any`: the barrier orders it first (so the file is on disk
+  before a consumer reads env), and `any` keeps a disabled or no-op `load_secrets`
+  from skipping anything. It keeps the default `on_failure: fail`, so if it
+  cannot read a file a `_FILE` points at, that aborts the container loudly rather
+  than starting without the credential — the `any` edges do not soften that. `env_dir` defaults
+  to `/container-supervisor/supervisor_environment` (beside the config); that
+  directory is pre-created `--chown=65532:65532` in the Dockerfile because
+  `/container-supervisor` itself is root-owned and the process runs every start.
 - `register` — `one_shot`, `cscli machines add localhost --auto --force`. This is
   what upstream's script guards with a "already registered?" check; `--force`
   makes the guard unnecessary, and re-registering at every start is harmless
   because it rewrites both the row and the credentials file. Creating the sqlite
   database is a side effect of it.
-- `crowdsec` — `service`, `depends_on` `register: success` and nothing else.
+- `install_collections` — `one_shot`, `on_failure: continue`, **no**
+  `depends_on`. It carries no `arguments`, so with nothing set it runs `cscli`
+  bare (prints help, exits 0, a no-op). The operator supplies the install command
+  through one env var, `SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS`.
+  Baking the slot (rather than making the operator define a process from scratch
+  and re-wire CrowdSec) turns bootstrapping a collection into setting a single
+  variable. It does **not** `depends_on` `register`: installing a hub item is a
+  download-and-symlink into `/etc/crowdsec`, never an LAPI or database call, so
+  coupling it to `register` would only break it in the remote-LAPI setup where
+  `register` is disabled (a disabled dependency counts as failure and would skip
+  the install).
+- `config` — `one_shot`, `enabled: false`. `envelope -prefix CROWDSEC_CONFIG_
+  -out /etc/crowdsec/config.yaml.local` renders the `.local` overlay from
+  `CROWDSEC_CONFIG_`-prefixed env before CrowdSec reads it. envelope writes to
+  **stdout** by default; the `-out` flag (its README omits it, `cmd/envelope`
+  has it) makes it write the file, which is why no shell is needed for the `>`
+  redirect the examples show. Off by default because most deployments mount their
+  own `config.yaml.local`; the operator flips
+  `SUPERVISOR_PROCESSES__CONFIG__ENABLED=true`. Left at `on_failure: fail` (like
+  coredns' `corefile-gen`): if the override can't be written, abort rather than
+  start against a stale one.
+- `crowdsec` — `service`, `depends_on` `register: success` **and**
+  `install_collections: any` **and** `config: any`, so the collection loads and
+  the overlay is written on the same start rather than the next boot. `any` on
+  `install_collections`/`config` because a failed or no-op install, or a disabled
+  `config`, must not block CrowdSec — a disabled dependency counts as failure, so
+  `success` there would skip CrowdSec whenever `config` stays off. These edges,
+  not a `register` dependency, are what order both before CrowdSec.
+- `upgrade_collections` — `cron` `0 3 * * *`, `cscli collections upgrade --all`,
+  `on_failure: continue`. Keeps installed collections current without a restart.
+  No `depends_on`: it fires on wall-clock time, long after startup, and a failed
+  run (no network) must not abort the container. Time is container-local — UTC on
+  distroless unless `TZ` is set.
 
-There is no baked `cscli` bootstrap slot: it was a disabled placeholder and is
-dropped. An operator that wants one bootstrap command (`collections install …`,
-`bouncers add …`, `hub upgrade`) **defines the whole process from env vars** —
-container-supervisor creates a process that is not in the file, not only
-overrides one that is — and re-adds the `crowdsec → cscli` wait so the item
-loads in the same start (`SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT=any`
-merges into the existing `depends_on`). The README documents the full set.
 `ARGUMENTS` splits on whitespace, so a comma-separated or JSON-looking value
 arrives as one argument and `cscli` prints its help; number the entries
-(`…__ARGUMENTS__0`, `__1`) for an argument that must contain a space.
+(`…__ARGUMENTS__0`, `__1`) for an argument that must contain a space. An operator
+that wants a *different* bootstrap command (`bouncers add …`, `hub upgrade`) can
+still **define a whole process from env vars** — container-supervisor creates a
+process that is not in the file — and merge the wait into `crowdsec`'s
+`depends_on` (`SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__<NAME>__EXIT=any`). The
+README documents the full set.
 
 The `depends_on` graph is validated before anything starts — a dangling
-reference (`crowdsec` depending on a `cscli` that no longer exists) is a *fatal
-startup error*, not a silent skip, which is why removing the slot means removing
-the dependency in the same edit.
+reference (`crowdsec` depending on a process that does not exist) is a *fatal
+startup error*, not a silent skip, which is why `install_collections` is a real
+baked slot and not something the dependency merely hopes will be defined.
 
 `hide_labels: true` drops the `[<process>]` prefix from child output, so
 CrowdSec's log lines reach `docker logs` in stock format. The supervisor's own

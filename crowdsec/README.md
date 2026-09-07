@@ -39,6 +39,7 @@ drove from env vars, a mounted `config.yaml` does — see
 | --- | --- | --- |
 | `crowdsec`, `cscli` | [crowdsecurity/crowdsec](https://github.com/crowdsecurity/crowdsec) | `CROWDSEC_VERSION` — copied out of `crowdsecurity/crowdsec:$CROWDSEC_VERSION` |
 | container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
+| envelope | [envelope](https://github.com/BaseCrusher/envelope) | `ENVELOPE_VERSION` — renders `config.yaml.local` from env, [off by default](#generating-configyamllocal-from-env-vars) |
 
 Preloaded from the official image: the hub index, the `crowdsecurity/linux`
 collection (syslog, sshd, its scenarios), `crowdsecurity/whitelists`,
@@ -75,23 +76,18 @@ level=error msg="unable to open GeoLite2-City.mmdb : open /var/lib/crowdsec/data
 
 It is not fatal — parsing and scenarios still work, only the enrichment is
 missing. If the path has to be an empty volume (Kubernetes), download the
-datafiles at every start with `hub upgrade`, which runs before CrowdSec loads
-its parsers:
+datafiles at every start by pointing the baked `install_collections` slot at
+`hub upgrade`; it already runs before CrowdSec loads its parsers:
 
 ```yaml
         env:
-          - name: SUPERVISOR_PROCESSES__CSCLI__PATH
-            value: /usr/local/bin/cscli
-          - name: SUPERVISOR_PROCESSES__CSCLI__TYPE
-            value: one_shot
-          - name: SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS
+          - name: SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS
             value: hub upgrade
-          - name: SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT
-            value: any
 ```
 
-This defines the process from env vars — there is no `cscli` slot in the
-shipped `supervisor.yml`; see [Declaratively, without exec](#declaratively-without-exec).
+That one variable is enough — the slot and CrowdSec's wait on it are already in
+the shipped `supervisor.yml`; see [Install collections at
+start](#install-collections-at-start).
 
 ### Acquisition
 
@@ -133,6 +129,101 @@ labels:
 The `http` source needs a port of its own — `8080` is the LAPI, `6060` the
 Prometheus endpoint.
 
+### Acquisition files from env vars
+
+Instead of mounting each `acquis.d/*.yaml`, you can render one from env vars with
+[`envelope`](#generating-configyamllocal-from-env-vars) — the same tool the
+`config` process uses. There is no baked slot for it (acquisition is one file per
+source, and only you know how many), so declare an `envelope` process per source
+and point its `-out` at that source's file:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__ACQUIS_TRAEFIK__PATH: /usr/local/bin/envelope
+      SUPERVISOR_PROCESSES__ACQUIS_TRAEFIK__TYPE: one_shot
+      SUPERVISOR_PROCESSES__ACQUIS_TRAEFIK__ARGUMENTS: -prefix ACQUISITION_TRAEFIK_ -out /etc/crowdsec/acquis.d/traefik.yaml
+      SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__ACQUIS_TRAEFIK__EXIT: any
+
+      ACQUISITION_TRAEFIK_source: http
+      ACQUISITION_TRAEFIK_listen_addr: 0.0.0.0:8081
+      ACQUISITION_TRAEFIK_path: /traefik
+      ACQUISITION_TRAEFIK_auth_type: headers
+      ACQUISITION_TRAEFIK_headers__X-Api-Token: change-me
+      ACQUISITION_TRAEFIK_labels__type: traefik
+```
+
+writes `/etc/crowdsec/acquis.d/traefik.yaml`:
+
+```yaml
+source: http
+listen_addr: 0.0.0.0:8081
+path: /traefik
+auth_type: headers
+headers:
+  X-Api-Token: change-me
+labels:
+  type: traefik
+```
+
+The prefix pattern is `ACQUISITION_<NAME>_`; envelope strips it and takes the
+rest verbatim (`__` nests, a single `_` is literal, so `listen_addr` and
+`headers__X-Api-Token` land as written). Add a second source by declaring
+a second process — its own name, prefix and `-out`
+(`ACQUIS_SSHD` / `ACQUISITION_SSHD_` / `acquis.d/sshd.yaml`) — and repeat for as
+many as you need. Each `DEPENDS_ON` line makes CrowdSec wait for that file before
+it reads `acquis.d/`; `exit: any` mirrors the other start-time processes so a
+disabled render never blocks startup.
+
+Header names keep their hyphens: envelope copies the key after the prefix
+untouched, and Docker and recent Kubernetes pass a hyphenated env-var name
+through (a POSIX shell's `export` will not — set it via `-e`/`environment`/the
+pod `env:` list). A token like `X-Api-Token`'s value is a secret; keep it out of
+the env block and read it from a mounted file instead — see
+[Loading secrets from files](#loading-secrets-from-files-_file).
+
+## Loading secrets from files (`*_FILE`)
+
+`cscli`, `crowdsec` and `envelope` all read plain env vars, so a secret set that
+way — a bouncer key, an acquisition token, a database password — sits in the
+container's environment for anything to read. The `load_secrets` process is the
+Docker `*_FILE` convention: for every `NAME_FILE` variable pointing at a path it
+reads the file and hands the later processes `$NAME` directly, so the value comes
+from a mounted Secret and never from the env block.
+
+It runs **first on every start and is enabled by default**; with no `_FILE`
+variables set it does nothing. To use it, mount the secret and point a `_FILE`
+twin of the variable you would otherwise set at it:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__CONFIG__ENABLED: "true"
+      CROWDSEC_CONFIG_db_config__password_FILE: /run/secrets/db-password
+      ACQUISITION_TRAEFIK_headers__X-Api-Token_FILE: /run/secrets/traefik-token
+    secrets:
+      - db-password
+      - traefik-token
+```
+
+`load_secrets` materialises `CROWDSEC_CONFIG_db_config__password` and
+`ACQUISITION_TRAEFIK_headers__X-Api-Token` from the mounted files before the
+`config` and acquisition renders read them, so the `.local` overlay and the
+acquisition file get the secret without it ever being an env var.
+
+The `_FILE` name is the full variable plus `_FILE`
+(`CROWDSEC_CONFIG_db_config__password` → `…password_FILE`), and a `_FILE` twin
+takes precedence — set one or the other, not both. `load_secrets` runs at the
+supervisor's default `on_failure: fail`, so if it cannot read the file a `_FILE`
+points at, the container aborts rather than starting without the secret.
+
+Every **baked** start-time process (`register`, `install_collections`, `config`,
+`crowdsec`) already waits for `load_secrets`. An acquisition or bootstrap process
+you [define yourself](#acquisition-files-from-env-vars) that consumes a secret
+must add the same wait so the file exists before it reads env:
+
+```yaml
+      SUPERVISOR_PROCESSES__ACQUIS_TRAEFIK__DEPENDS_ON__LOAD_SECRETS__EXIT: any
+```
+
 ## Bootstrapping with cscli
 
 Registering a bouncer, installing a collection, enrolling in the console —
@@ -152,52 +243,79 @@ with the data volume. Anything that ends up in `/etc/crowdsec` (installed hub
 items, CAPI credentials) does not, unless that path is a volume too — otherwise
 it is gone the next time the container is recreated.
 
-### Declaratively, without exec
+### Install collections at start
 
-`container-supervisor` can run one `cscli` command of your choice before
-CrowdSec starts, so a hub item, bouncer or collection is in place for the same
-start rather than the next one. There is no such process in `supervisor.yml` by
-default — the shipped file is `register` plus `crowdsec` and nothing else — but
-env vars can **define a new process from scratch**, not only override an
-existing one. Declare it and wire CrowdSec to wait for it:
+`supervisor.yml` ships an `install_collections` process — a `one_shot` `cscli`
+step that runs before CrowdSec, so a collection is in place for the same start
+rather than the next one. It carries no arguments, so by default it runs `cscli`
+with none (prints help, exits 0, a harmless no-op). Give it the install command
+through one env var:
 
 ```yaml
 services:
   crowdsec:
     image: ghcr.io/basecrusher/rootless-containers/crowdsec:v1.7.8-1.0
     environment:
-      SUPERVISOR_PROCESSES__CSCLI__PATH: /usr/local/bin/cscli
-      SUPERVISOR_PROCESSES__CSCLI__TYPE: one_shot
-      SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS: collections install crowdsecurity/traefik
-      SUPERVISOR_PROCESSES__CSCLI__ON_FAILURE: continue
-      SUPERVISOR_PROCESSES__CSCLI__DEPENDS_ON__REGISTER__EXIT: success
-      SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT: any
+      SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS: collections install crowdsecurity/traefik
     volumes:
       - csdata:/var/lib/crowdsec/data
       - csconfig:/etc/crowdsec
 ```
 
-Each line does one job:
+That is the whole change — the dependency wiring is already baked in: `crowdsec`
+`depends_on` `install_collections` `exit: any`, so CrowdSec waits for it and the
+collection loads on the same start rather than the next boot. The step has no
+`depends_on` of its own: installing a collection is a hub-and-filesystem
+operation that never touches the LAPI or the database, so it does not wait on
+`register` and still works when `register` is disabled (remote LAPI).
 
-- `PATH` / `TYPE` / `ARGUMENTS` — the process itself. Arguments are split on
-  whitespace, so quoting inside that value does nothing; one word per argument.
-  For an argument that must contain a space, number the entries instead
-  (`SUPERVISOR_PROCESSES__CSCLI__ARGUMENTS__0=…`, `__1=…`).
-- `ON_FAILURE: continue` — a command that fails (re-installing an existing item)
-  does not abort the start.
-- `DEPENDS_ON__REGISTER__EXIT: success` — run after `register`, so the machine
-  and database exist first (`bouncers add` needs them).
-- `SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__CSCLI__EXIT: any` — the one that
-  makes it useful. It **merges** into `crowdsec`'s existing `depends_on`, so
-  CrowdSec now waits for both `register` and `cscli`; without it CrowdSec would
-  start in parallel and the item would only take effect next boot. `exit: any`
-  so a failed bootstrap does not block CrowdSec.
+`cscli collections install` is idempotent: an already-installed item is skipped
+(exit 0), so keep the full list of collections you want in the variable and let
+it re-assert them every start — it installs the missing ones and no-ops the rest.
+Add a collection by appending its name; `install` takes several at once:
 
-Installing needs network: the baked hub index carries no item content.
+```yaml
+      SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS: collections install crowdsecurity/traefik crowdsecurity/sshd
+```
 
-For **more than one** command, mount your own supervisor configuration over
+Two things this needs. **Network** — the baked hub index carries no item
+content, so the first install of each item downloads it. And **the
+`/etc/crowdsec` volume** (`csconfig` above): installed items are symlinks under
+`/etc/crowdsec/collections` into `/etc/crowdsec/hub`, owned by uid 65532 like the
+process, so the install writes fine — but without a volume there they are gone on
+recreation and re-downloaded every start. `on_failure: continue` is baked in, so
+even a genuine failure (no network on a fresh volume) logs and lets CrowdSec come
+up rather than aborting.
+
+Arguments are split on whitespace, so quoting inside the value does nothing; one
+word per argument. For an argument that must contain a space, number the entries
+instead (`SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS__0=…`, `__1=…`).
+
+### Daily collection upgrades
+
+`install` pins the version it first fetched; it does not pull newer ones. To keep
+them current, `supervisor.yml` ships an `upgrade_collections` process — a `cron`
+job that runs `cscli collections upgrade --all` daily at 03:00, bumping every
+installed collection (and the parsers and scenarios they pull in) without a
+container restart. `on_failure: continue`, so a failed run (usually no network)
+is logged and the next day tries again rather than aborting the container.
+
+The time is container-local; distroless defaults to UTC, so set `TZ` to move it.
+Override the schedule from env vars — `SUPERVISOR_PROCESSES__UPGRADE_COLLECTIONS__CRON`
+takes any 5-field cron expression — or disable it by pointing the process at
+`/bin/true`. Upgrading needs network; the baked hub index carries no item content.
+
+### More than one bootstrap command
+
+Env vars can also **define a new process from scratch**, not only override the
+baked one — set `SUPERVISOR_PROCESSES__<NAME>__PATH`/`__TYPE`/`__ARGUMENTS` and
+wire CrowdSec to wait with `SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__<NAME>__EXIT: any`
+(it **merges** into `crowdsec`'s existing `depends_on`). But past one extra
+command that gets unwieldy — mount your own supervisor configuration over
 `/container-supervisor/config.yml`. It replaces the file in the image, so it has
-to declare `register` and `crowdsec` again as well:
+to declare `register` and `crowdsec` again as well — and the baked
+`install_collections`, `config` and `upgrade_collections` are gone unless you
+re-declare them too:
 
 ```yaml
 hide_labels: true
@@ -250,7 +368,8 @@ level=warning msg="Communication with CrowdSec Central API disabled from configu
 `cscli capi register -f /etc/crowdsec/online_api_credentials.yaml` fills it in
 and the next start picks it up — nothing else to configure. Do that once, with
 `/etc/crowdsec` on a volume: every registration creates a new CAPI account, so
-running it at every start (via the `cscli` slot) leaves a trail of dead ones.
+running it at every start (via `install_collections` or a start-time process)
+leaves a trail of dead ones.
 
 Registration talks to `api.crowdsec.net`, which is why it is not the default.
 
@@ -314,6 +433,47 @@ level=info msg="Loading yaml file: '/etc/crowdsec/config.yaml' with additional v
   [`.local` mechanism](https://docs.crowdsec.net/docs/configuration/crowdsec_configuration/).
 - Use a `subPath` mount (as above) so only the one file is replaced and the rest
   of `/etc/crowdsec` — the baked hub symlinks and credentials — stays intact.
+
+### Generating `config.yaml.local` from env vars
+
+When a mounted file is awkward — you want a few overrides driven by the same env
+the rest of the deployment uses — `supervisor.yml` ships a `config` process that
+runs [`envelope`](https://github.com/BaseCrusher/envelope) to build
+`config.yaml.local` from `CROWDSEC_CONFIG_`-prefixed variables before CrowdSec
+starts. It is **disabled by default**; enable it and set the values:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__CONFIG__ENABLED: "true"
+      CROWDSEC_CONFIG_common__log_level: debug
+      CROWDSEC_CONFIG_api__server__listen_uri: 0.0.0.0:9999
+      CROWDSEC_CONFIG_db_config__use_wal: "true"
+```
+
+writes `/etc/crowdsec/config.yaml.local`:
+
+```yaml
+common:
+  log_level: debug
+api:
+  server:
+    listen_uri: 0.0.0.0:9999
+db_config:
+  use_wal: true
+```
+
+envelope's rules: `__` becomes nesting, a numeric segment becomes a list index
+(`…__ARGUMENTS__0`), and the key is taken **verbatim** — it is not lowercased, so
+write the CrowdSec keys in their own case (`common`, `db_config`), lowercase,
+under the uppercase `CROWDSEC_CONFIG_` prefix. It writes the file directly (`-out`),
+no shell needed, and `crowdsec` `depends_on` it `exit: any`, so when enabled
+CrowdSec waits for the file and when disabled it is skipped and startup proceeds.
+
+This is a `.local` overlay like the mounted file above, so the same merge rules
+apply. It writes into `/etc/crowdsec`, which must be writable by uid 65532 (the
+baked default; a read-only mount there fails the write and, as a `one_shot` left
+at `on_failure: fail`, aborts the start rather than running against a stale one).
+Mount your own `config.yaml.local` instead if you would rather not template.
 
 ### Notification plugins are not included
 
@@ -390,10 +550,11 @@ Two things that shared database changes, unrelated to the name:
   running `machines add` at once each try to create the schema. Bring up one
   instance first (or run `cscli` against the database once), then scale out.
   Concurrent registers against an existing schema are fine.
-- **Bootstrap once, not per replica.** The [`cscli` slot](#declaratively-without-exec)
-  writes to the same shared database from every instance — `bouncers add traefik`
-  on all of them collides exactly the way `localhost` did. Enable it on a single
-  init instance, or give each a unique bouncer name.
+- **Bootstrap once, not per replica.** A start-time `cscli` step that writes the
+  database — a [`bouncers add`](#more-than-one-bootstrap-command) process, not the
+  hub-only `install_collections` — runs on every instance and collides exactly the
+  way `localhost` did. Enable it on a single init instance, or give each a unique
+  bouncer name.
 
 ## Distroless caveats
 
