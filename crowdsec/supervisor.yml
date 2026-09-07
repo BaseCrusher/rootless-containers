@@ -17,6 +17,18 @@ processes:
     depends_on:
       load_secrets:
         exit: any
+  add_bouncer:
+    path: /usr/local/bin/cscli
+    type: one_shot
+    on_failure: continue
+    arguments: ["bouncers", "add", "{{1}}", "-k", "$(BOUNCER_KEY_{{2}})"]
+    for_each:
+      - "traefik;TRAEFIK"
+    depends_on:
+      load_secrets:
+        exit: any
+      register:
+        exit: success
   config:
     path: /usr/local/bin/envelope
     arguments: ["-prefix", "CROWDSEC_CONFIG_", "-out", "/etc/crowdsec/config.yaml.local"]
@@ -34,6 +46,8 @@ processes:
       register:
         exit: success
       install_collections:
+        exit: any
+      add_bouncer:
         exit: any
       config:
         exit: any

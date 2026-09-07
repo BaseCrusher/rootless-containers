@@ -291,6 +291,82 @@ Arguments are split on whitespace, so quoting inside the value does nothing; one
 word per argument. For an argument that must contain a space, number the entries
 instead (`SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS__0=…`, `__1=…`).
 
+### Register bouncers at start
+
+A bouncer's API key is a database row, so it is seeded at start rather than
+exec'd in afterwards. `supervisor.yml` ships an `add_bouncer` process that uses
+container-supervisor's [`for_each`](https://github.com/BaseCrusher/container-supervisor)
+to register **one bouncer per row** from a single definition:
+
+```yaml
+  add_bouncer:
+    path: /usr/local/bin/cscli
+    type: one_shot
+    on_failure: continue
+    arguments: ["bouncers", "add", "{{1}}", "-k", "$(BOUNCER_KEY_{{2}})"]
+    for_each:
+      - "traefik;TRAEFIK"
+    depends_on:
+      load_secrets:
+        exit: any
+      register:
+        exit: success
+```
+
+`crowdsec` `depends_on add_bouncer exit: any`, so the agent waits for it and a
+failed or skipped registration never blocks startup. To use it, mount the key and
+point its `_FILE` twin at the mount:
+
+```yaml
+    environment:
+      BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/CROWDSEC_BOUNCER_KEY
+    secrets:
+      - CROWDSEC_BOUNCER_KEY
+```
+
+How the pieces fit:
+
+- **`for_each`** turns one process into one instance per row. Each row is
+  `;`-separated fields; `{{1}}`, `{{2}}` in `arguments` are replaced by that row's
+  fields, so `traefik;TRAEFIK` runs `cscli bouncers add traefik -k
+  $(BOUNCER_KEY_TRAEFIK)`. The two fields are the **bouncer name** (as CrowdSec
+  stores it) and the **key-variable suffix** (uppercase, matching the secret) —
+  keeping them separate lets the name stay lowercase while the env var follows the
+  `BOUNCER_KEY_*` convention. An empty `for_each` is a fatal supervisor error, so
+  the shipped list carries the `traefik` default rather than nothing.
+- **`$(BOUNCER_KEY_TRAEFIK)`** is expanded from the environment at launch. The key
+  never appears in the manifest: `BOUNCER_KEY_TRAEFIK_FILE` points
+  [`load_secrets`](#loading-secrets-from-files-_file) at a mounted Secret, it
+  writes `BOUNCER_KEY_TRAEFIK` into the supervisor's env, and `add_bouncer` — which
+  `depends_on load_secrets` — reads it there. So the key is a property of a
+  Kubernetes Secret or Swarm config, not something you `docker exec` once.
+- **`depends_on register: success`** because `bouncers add` writes the LAPI
+  database that `register` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
+  setup where `register` is disabled, `add_bouncer` is skipped — add bouncers on
+  the remote LAPI there.
+- **`on_failure: continue`** makes re-adding an already-registered bouncer
+  harmless: the second start's `bouncers add` fails, the row keeps the key you
+  first passed, and startup proceeds. It also absorbs the default `traefik` row
+  when no `BOUNCER_KEY_TRAEFIK` is set.
+
+Register **more or different bouncers** by overriding the row list from env —
+each `FOR_EACH__N` is one bouncer, with its own `BOUNCER_KEY_<SUFFIX>_FILE`:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: traefik;TRAEFIK
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__1: metrics;METRICS
+      BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/traefik-bouncer-key
+      BOUNCER_KEY_METRICS_FILE: /run/secrets/metrics-bouncer-key
+    secrets:
+      - traefik-bouncer-key
+      - metrics-bouncer-key
+```
+
+`crowdsec` waits for **every** expanded instance. Bootstrapping the database this
+way runs on every replica, so on a [shared database](#multiple-instances-on-a-shared-database)
+enable it on one instance only.
+
 ### Daily collection upgrades
 
 `install` pins the version it first fetched; it does not pull newer ones. To keep
@@ -551,7 +627,7 @@ Two things that shared database changes, unrelated to the name:
   instance first (or run `cscli` against the database once), then scale out.
   Concurrent registers against an existing schema are fine.
 - **Bootstrap once, not per replica.** A start-time `cscli` step that writes the
-  database — a [`bouncers add`](#more-than-one-bootstrap-command) process, not the
+  database — the [`add_bouncer`](#register-bouncers-at-start) process, not the
   hub-only `install_collections` — runs on every instance and collides exactly the
   way `localhost` did. Enable it on a single init instance, or give each a unique
   bouncer name.

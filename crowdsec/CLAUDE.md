@@ -117,6 +117,19 @@ default nothing here templates `config.yaml` — it is used as mounted.
   coupling it to `register` would only break it in the remote-LAPI setup where
   `register` is disabled (a disabled dependency counts as failure and would skip
   the install).
+- `add_bouncer` — `one_shot`, `on_failure: continue`, a `for_each` process that
+  runs `cscli bouncers add {{1}} -k $(BOUNCER_KEY_{{2}})` once per row. Each
+  `;`-field row is `<bouncer-name>;<KEY_SUFFIX>`; the key is expanded at launch
+  from `BOUNCER_KEY_<SUFFIX>`, which `load_secrets` materialises from a mounted
+  `_FILE` Secret, so it is never in the manifest. Unlike `install_collections` it
+  **does** `depends_on register: success` — `bouncers add` writes the LAPI
+  database `register` creates — so it is skipped in the remote-LAPI setup where
+  `register` is off, which is correct (bouncers belong on the remote LAPI there).
+  `for_each` **cannot be empty** (fatal `for_each is set but empty`), so the file
+  ships a single `traefik;TRAEFIK` row as the default; the operator overrides the
+  list with `SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__N` and supplies each
+  key. `on_failure: continue` absorbs the default row when no key is set and the
+  re-add failure on every later start.
 - `config` — `one_shot`, `enabled: false`. `envelope -prefix CROWDSEC_CONFIG_
   -out /etc/crowdsec/config.yaml.local` renders the `.local` overlay from
   `CROWDSEC_CONFIG_`-prefixed env before CrowdSec reads it. envelope writes to
@@ -128,12 +141,15 @@ default nothing here templates `config.yaml` — it is used as mounted.
   coredns' `corefile-gen`): if the override can't be written, abort rather than
   start against a stale one.
 - `crowdsec` — `service`, `depends_on` `register: success` **and**
-  `install_collections: any` **and** `config: any`, so the collection loads and
-  the overlay is written on the same start rather than the next boot. `any` on
-  `install_collections`/`config` because a failed or no-op install, or a disabled
-  `config`, must not block CrowdSec — a disabled dependency counts as failure, so
-  `success` there would skip CrowdSec whenever `config` stays off. These edges,
-  not a `register` dependency, are what order both before CrowdSec.
+  `install_collections: any` **and** `add_bouncer: any` **and** `config: any`, so
+  the collection loads, the bouncers register and the overlay is written on the
+  same start rather than the next boot. `any` on
+  `install_collections`/`add_bouncer`/`config` because a failed or no-op step, or
+  a disabled one, must not block CrowdSec — a disabled dependency counts as
+  failure, so `success` there would skip CrowdSec whenever that step stays off.
+  A `for_each` dependency expands to every instance, so this one edge makes
+  CrowdSec wait for all `add_bouncer` rows. These edges, not a `register`
+  dependency, are what order them before CrowdSec.
 - `upgrade_collections` — `cron` `0 3 * * *`, `cscli collections upgrade --all`,
   `on_failure: continue`. Keeps installed collections current without a restart.
   No `depends_on`: it fires on wall-clock time, long after startup, and a failed

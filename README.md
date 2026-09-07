@@ -13,9 +13,10 @@ runs as an unprivileged user, not root.
 - [crowdsec](crowdsec/) — CrowdSec on distroless: the release binaries lifted out
   of the official image, its preloaded hub and GeoLite2 databases, and no
   `docker_start.sh`. The env vars that script reads do not work here; mount your
-  own `config.yaml` (a ConfigMap) to change settings, a `cscli` slot in
-  `container-supervisor` runs one bootstrap command before the agent starts, and
-  `docker exec cscli …` does the rest. Notification plugins are not included.
+  own `config.yaml` (a ConfigMap) to change settings, baked `cscli` slots in
+  `container-supervisor` install collections and register bouncers (`for_each`,
+  one per bouncer) before the agent starts, and `docker exec cscli …` does the
+  rest. Notification plugins are not included.
 - [valkey](valkey/) — Valkey on distroless: the upstream `valkey-server` and
   `valkey-cli` binaries copied out of `valkey/valkey` (the Debian, glibc image),
   with only the four libraries the base lacks (`libsystemd`, `libcap`, `libz`,
