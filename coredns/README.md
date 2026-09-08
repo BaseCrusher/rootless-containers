@@ -10,7 +10,7 @@ instead of a mounted Corefile.
 | --- | --- | --- |
 | Plugins | upstream set | upstream set **+** `acmednschallenge`, `traefik`, `records` |
 | Corefile | mounted, read from `/Corefile` | generated at startup from `COREDNS_*` env vars |
-| PID 1 | `coredns` | `container-supervisor`, which runs the generator then CoreDNS |
+| PID 1 | `coredns` | `container-supervisor`, which runs the A-records helper, the generator, then CoreDNS |
 | Working dir | `/` | `/home/nonroot` |
 | Base | `gcr.io/distroless/static-debian12:nonroot` | `gcr.io/distroless/static-debian13:nonroot` |
 
@@ -27,6 +27,7 @@ same `-conf`/`-dns.port` flags.
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
 | `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
 | `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
+| `a-records` helper | this repo (`coredns/a-records/`) | built from source at image build |
 
 ### Patched Go modules
 
@@ -59,7 +60,7 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   -e COREDNS_MYZONE_ZONE=example.org \
   -e COREDNS_MYZONE__file=db.example.org \
   -e COREDNS_MYZONE__log= \
-  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-3.2
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-5.5
 ```
 
 That produces and runs:
@@ -97,6 +98,59 @@ the binaries and the container will not start. There is no shell in the image, s
 checks do not work; debug with `docker logs`, CoreDNS's own `health` and
 `prometheus` plugins, or the `-debug` image below.
 
+### A records from a single variable
+
+The `records` plugin wants one `COREDNS_<GROUP>__records___AT__<N>` variable per
+`A` record, each individually indexed. That is awkward when the set of IPs comes
+from one place (a load balancer pool, a rendered list). A small helper,
+**disabled by default**, lets you pass the whole list in one variable:
+
+```sh
+docker run --rm -p 53:53/udp -p 53:53/tcp \
+  -e SUPERVISOR_PROCESSES__A-RECORDS__ENABLED=true \
+  -e COREDNS_MAIN_ZONE=example.org \
+  -e COREDNS_MAIN__records___AT__1='60 IN SOA ns hostmaster 1 60 60 60 60' \
+  -e COREDNSARECORDS_MAIN='1.2.3.4,5.6.7.8' \
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-5.5
+```
+
+`<GROUP>` in `COREDNSARECORDS_<GROUP>` is the same server-block group used by the
+`COREDNS_<GROUP>_*` variables. The helper appends one `@ IN A <ip>` record per
+comma-separated IP, numbered **after** the highest existing
+`COREDNS_<GROUP>__records___AT__<N>` in that block — so it slots in below your
+static SOA/NS records without you tracking indices. The example above yields:
+
+```
+example.org:53 {
+    records {
+        @ 60 IN SOA ns hostmaster 1 60 60 60 60
+        @ IN A 1.2.3.4
+        @ IN A 5.6.7.8
+    }
+}
+```
+
+Notes:
+
+- **Disabled by default.** The `a-records` process ships `enabled: false`; turn it
+  on with `SUPERVISOR_PROCESSES__A-RECORDS__ENABLED=true`. While disabled it never
+  runs and CoreDNS starts exactly as before — `corefile-gen` depends on it with
+  `ignore_exit_when_disabled: true`, so a disabled `a-records` does not skip the
+  rest of the chain (needs container-supervisor **v1.10.0+**). The hyphen in that
+  env var name is fine for `docker -e`/Compose; on Kubernetes it needs the
+  `RelaxedEnvironmentVariableValidation` feature gate (default-on in recent
+  releases).
+- Records are emitted without an explicit TTL, so the zone default (SOA minimum)
+  applies. Set a TTL on the individual `A` records with the plain
+  `COREDNS_<GROUP>__records___AT__<N>` form if you need one.
+- The list lives outside the `COREDNS_` namespace (`COREDNSARECORDS_`), so
+  `corefile-gen` never sees it — the helper is the only reader.
+
+The helper runs first, writes the expanded variables into the supervisor's
+`env_dir`, and `corefile-gen` (which depends on it) picks them up. See
+[the A-records helper section](CLAUDE.md#a-records-helper-a-records) in
+`CLAUDE.md` for the mechanics.
+
 ### Ports
 
 - `53/tcp`, `53/udp`
@@ -108,8 +162,8 @@ platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.14.7-3.2`, `:v1.14.7-3`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
-| `:v1.14.7-3.2-debug`, `:v1.14.7-3-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
+| `:v1.14.7-5.5`, `:v1.14.7-5`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
+| `:v1.14.7-5.5-debug`, `:v1.14.7-5-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
 
 All under `ghcr.io/basecrusher/rootless-containers/coredns`. Tags are
 `<version>-Y.Z`: `<version>` is `COREDNS_VERSION` (what gets built, so the two
@@ -135,7 +189,7 @@ cd coredns && docker buildx bake
 | `coredns` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}`, `:${COREDNS_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `coredns-debug` | `${REGISTRY}/coredns:${COREDNS_VERSION}-${IMAGE_REVISION}-debug`, `:${COREDNS_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `COREDNS_VERSION` and `IMAGE_REVISION` (default `5.2`) are bake
+`REGISTRY`, `COREDNS_VERSION` and `IMAGE_REVISION` (default `5.5`) are bake
 variables — override any from the environment
 (`COREDNS_VERSION=v1.14.5 docker buildx bake …`).
 

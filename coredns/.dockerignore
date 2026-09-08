@@ -2,3 +2,5 @@
 !modules.json
 !plugins.json
 !supervisor.yml
+!a-records
+!a-records/**

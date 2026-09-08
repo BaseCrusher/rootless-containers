@@ -70,10 +70,16 @@ RUN curl -fsSL -o container-supervisor \
     && chmod +x container-supervisor
 RUN mkdir config
 
+COPY a-records /a-records
+RUN cd /a-records && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    GOFLAGS="-buildvcs=false" go build -o /coredns_temp/a-records .
+RUN mkdir -p /container-supervisor/supervisor_environment
+
 FROM $BASE_IMAGE
 COPY --from=build --chown=65532:65532 /coredns_temp/ /home/nonroot/
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY supervisor.yml /container-supervisor/config.yml
+COPY --from=build --chown=65532:65532 /container-supervisor/supervisor_environment /container-supervisor/supervisor_environment
 USER nonroot:nonroot
 WORKDIR /home/nonroot
 

@@ -9,7 +9,8 @@ runs as an unprivileged user, not root.
   plugins, cloned from git at pinned refs listed in `coredns/plugins.json`.
   No Corefile to mount — it is generated at startup from `COREDNS_*` env vars.
   `coredns/modules.json` sets version floors for Go dependencies with an
-  advisory but no CoreDNS release to bump to.
+  advisory but no CoreDNS release to bump to. An optional, off-by-default helper
+  expands a whole `A`-record pool from one `COREDNSARECORDS_<GROUP>` variable.
 - [crowdsec](crowdsec/) — CrowdSec on distroless: the release binaries lifted out
   of the official image, its preloaded hub and GeoLite2 databases, and no
   `docker_start.sh`. The env vars that script reads do not work here; mount your

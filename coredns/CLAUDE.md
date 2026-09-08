@@ -102,8 +102,8 @@ way, just different variables:
 
 | Binary | Repo | Build arg | Asset suffix |
 | --- | --- | --- | --- |
-| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.0.4`, set in `docker-bake.hcl`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
-| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.2.0`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
+| `corefile-gen` | [coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` (`v1.1.0`, set in `docker-bake.hcl`) | `$TARGETARCH` — `amd64`, `arm64`, `arm` |
+| `container-supervisor` | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` (`v1.10.0`) | `$TARGETARCH$TARGETVARIANT` — `amd64`, `arm64`, `armv7` |
 
 `$TARGETVARIANT` is empty for `linux/amd64` and `linux/arm64` (buildx
 normalises `arm64/v8` to an empty variant) and `v7` for `linux/arm/v7`, so the
@@ -136,6 +136,56 @@ write and aborts the run) — env vars are now the way in.
 CoreDNS is no longer PID 1, but `cap_net_bind_service` is a file capability on
 the binary, so it still applies across the supervisor's `exec` and port 53
 still binds without root.
+
+### A-records helper (`a-records/`)
+
+A third process, `a-records`, runs *before* `corefile-gen`. It exists because
+`corefile-gen` renders one directive per env var: repeating an `A` record means
+a hand-numbered `COREDNS_<GROUP>__records___AT__<N>` per IP. The helper lets you
+pass the whole pool in one variable, `COREDNSARECORDS_<GROUP>=ip1,ip2,…`, and
+expands it into those numbered vars.
+
+It is a tiny Go program built from source in the build stage (`go build` into
+`/coredns_temp/a-records`, so it ships next to `coredns` at `/home/nonroot`), not
+a fetched release. Stdlib only; `main.go` keeps the transform in a pure `expand`
+function with a test.
+
+Why a separate process and not a `corefile-gen` fork: container-supervisor
+v1.9.0+ passes env vars between processes through an `env_dir` (one file per var,
+filename = key, read into every later child before it starts, config always
+winning last). `a-records` writes the expanded `COREDNS_<GROUP>__records___AT__<N>`
+files into `env_dir` (`/container-supervisor/supervisor_environment`, pre-created
+`chown 65532` in the Dockerfile because the distroless final stage has no shell
+to `mkdir`); `corefile-gen` `depends_on` it, so it sees them. `env_dir` did not
+exist before container-supervisor v1.9.0.
+
+The input lives in the `COREDNSARECORDS_` namespace, **outside** `COREDNS_`, on
+purpose. `corefile-gen` reads only `COREDNS_*`, so it never sees the raw pool
+variable — the helper is the sole reader, and there is no polluting directive to
+suppress. `env_dir` can add and override keys but not *unset* one, so a marker
+*inside* `COREDNS_` (e.g. a `_MULTIPLE` suffix) could not be hidden from
+`corefile-gen` once corefile-gen v1.1.1 — which understood that suffix — was
+withdrawn back to v1.1.0, which does not.
+
+The helper is **disabled by default at the supervisor level**: the `a-records`
+process is `enabled: false`, flipped on with
+`SUPERVISOR_PROCESSES__A-RECORDS__ENABLED=true`. This works cleanly only because
+`corefile-gen`'s dependency on it carries `ignore_exit_when_disabled: true`
+(container-supervisor v1.10.0+): a disabled process otherwise reports `failure`
+and, since `corefile-gen` requires it to exit `success`, would skip `corefile-gen`
+and CoreDNS entirely. `ignore_exit_when_disabled` treats the condition as met
+when `a-records` is disabled, so the rest of the chain runs untouched — hence the
+`SUPERVISOR_VERSION` bump to `v1.10.0`. The process name carries the hyphen into
+the `SUPERVISOR_PROCESSES__A-RECORDS__ENABLED` override; that env var name is fine
+for `docker -e`/Compose, and on Kubernetes needs the
+`RelaxedEnvironmentVariableValidation` feature gate (default-on in recent
+releases). Enabled but given no `COREDNSARECORDS_<GROUP>` var, it writes nothing
+and exits 0.
+
+It appends after the highest existing index in each group (computed from the
+`COREDNS_<GROUP>__records___AT__<N>` vars already in the environment, so static
+SOA/NS records keep their slots) and emits `@ IN A <ip>` with no explicit TTL,
+leaving the zone default to apply.
 
 ## Image layout
 

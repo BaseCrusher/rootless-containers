@@ -1,10 +1,21 @@
 hide_labels: true
 
+env_dir: /container-supervisor/supervisor_environment
+
 processes:
+  a-records:
+    path: /home/nonroot/a-records
+    arguments: ["/container-supervisor/supervisor_environment"]
+    type: one_shot
+    enabled: false
   corefile-gen:
     path: /home/nonroot/corefile-gen
     arguments: ["/home/nonroot/config/Corefile"]
     type: one_shot
+    depends_on:
+      a-records:
+        exit: success
+        ignore_exit_when_disabled: true
   coredns:
     path: /home/nonroot/coredns
     arguments: ["-conf", "/home/nonroot/config/Corefile"]
