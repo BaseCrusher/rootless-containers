@@ -185,20 +185,26 @@ the env block and read it from a mounted file instead — see
 
 `cscli`, `crowdsec` and `envelope` all read plain env vars, so a secret set that
 way — a bouncer key, an acquisition token, a database password — sits in the
-container's environment for anything to read. The `load_secrets` process is the
-Docker `*_FILE` convention: for every `NAME_FILE` variable pointing at a path it
-reads the file and hands the later processes `$NAME` directly, so the value comes
-from a mounted Secret and never from the env block.
+container's environment for anything to read. The `load_secrets` process brings
+the Docker `*_FILE` convention to them: for each `NAME_FILE` variable you name in
+its `secrets:` list, it reads the file that variable points at and hands the later
+processes `$NAME` directly, so the value comes from a mounted Secret and never
+from the env block.
 
-It runs **first on every start and is enabled by default**; with no `_FILE`
-variables set it does nothing. To use it, mount the secret and point a `_FILE`
-twin of the variable you would otherwise set at it:
+It runs **first on every start** but is **disabled by default** (the common
+deployment uses no `_FILE` secret, so nothing should run). To use it, enable it,
+mount the secret, point a `_FILE` twin of the variable you would otherwise set at
+it, and name that `_FILE` variable in `load_secrets`' list
+(`SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__N`, one index per secret):
 
 ```yaml
     environment:
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED: "true"
       SUPERVISOR_PROCESSES__CONFIG__ENABLED: "true"
       CROWDSEC_CONFIG_db_config__password_FILE: /run/secrets/db-password
       ACQUISITION_TRAEFIK_headers__X-Api-Token_FILE: /run/secrets/traefik-token
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0: CROWDSEC_CONFIG_db_config__password_FILE
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__1: ACQUISITION_TRAEFIK_headers__X-Api-Token_FILE
     secrets:
       - db-password
       - traefik-token
@@ -209,11 +215,13 @@ twin of the variable you would otherwise set at it:
 `config` and acquisition renders read them, so the `.local` overlay and the
 acquisition file get the secret without it ever being an env var.
 
-The `_FILE` name is the full variable plus `_FILE`
+Only the listed variables are resolved — an unlisted `_FILE` is ignored. The
+`_FILE` name is the full variable plus `_FILE`
 (`CROWDSEC_CONFIG_db_config__password` → `…password_FILE`), and a `_FILE` twin
 takes precedence — set one or the other, not both. `load_secrets` runs at the
-supervisor's default `on_failure: fail`, so if it cannot read the file a `_FILE`
-points at, the container aborts rather than starting without the secret.
+supervisor's default `on_failure: fail`, so a listed variable that is unset, or
+whose file it cannot read, aborts the container rather than starting without the
+secret.
 
 Every **baked** start-time process (`register`, `install_collections`, `config`,
 `crowdsec`) already waits for `load_secrets`. An acquisition or bootstrap process
@@ -319,7 +327,9 @@ point its `_FILE` twin at the mount:
 
 ```yaml
     environment:
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED: "true"
       BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/CROWDSEC_BOUNCER_KEY
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0: BOUNCER_KEY_TRAEFIK_FILE
     secrets:
       - CROWDSEC_BOUNCER_KEY
 ```
@@ -336,9 +346,10 @@ How the pieces fit:
   the shipped list carries the `traefik` default rather than nothing.
 - **`$(BOUNCER_KEY_TRAEFIK)`** is expanded from the environment at launch. The key
   never appears in the manifest: `BOUNCER_KEY_TRAEFIK_FILE` points
-  [`load_secrets`](#loading-secrets-from-files-_file) at a mounted Secret, it
-  writes `BOUNCER_KEY_TRAEFIK` into the supervisor's env, and `add_bouncer` — which
-  `depends_on load_secrets` — reads it there. So the key is a property of a
+  [`load_secrets`](#loading-secrets-from-files-_file) at a mounted Secret and is
+  named in its `secrets:` list (as above), so it writes `BOUNCER_KEY_TRAEFIK` into
+  the supervisor's env, and `add_bouncer` — which `depends_on load_secrets` — reads
+  it there. So the key is a property of a
   Kubernetes Secret or Swarm config, not something you `docker exec` once.
 - **`depends_on register: success`** because `bouncers add` writes the LAPI
   database that `register` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
@@ -354,10 +365,13 @@ each `FOR_EACH__N` is one bouncer, with its own `BOUNCER_KEY_<SUFFIX>_FILE`:
 
 ```yaml
     environment:
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED: "true"
       SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: traefik;TRAEFIK
       SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__1: metrics;METRICS
       BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/traefik-bouncer-key
       BOUNCER_KEY_METRICS_FILE: /run/secrets/metrics-bouncer-key
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0: BOUNCER_KEY_TRAEFIK_FILE
+      SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__1: BOUNCER_KEY_METRICS_FILE
     secrets:
       - traefik-bouncer-key
       - metrics-bouncer-key
@@ -685,7 +699,7 @@ cd crowdsec && docker buildx bake
 | `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:${CROWDSEC_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSEC_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.2`) are bake
+`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `5.0`) are bake
 variables — override any from the environment
 (`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
 compiled and nothing is emulated: the binaries come from the upstream image for

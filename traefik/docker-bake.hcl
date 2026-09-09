@@ -9,7 +9,7 @@ variable "TRAEFIK_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.8.0"
+  default = "v1.10.1"
 }
 
 # renovate: datasource=github-releases depName=maxlerebourg/crowdsec-bouncer-traefik-plugin
@@ -18,7 +18,7 @@ variable "CROWDSEC_PLUGIN_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "3.0"
+  default = "3.1"
 }
 
 group "default" {

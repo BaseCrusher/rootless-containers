@@ -9,11 +9,10 @@ processes:
     run_at_start: true
     enabled: false
     loglevel: warn
-  accesslogexporter:
+  accesslog:
     path: /home/nonroot/access-log-exporter
     type: ticker
     ticker: "@every 5s"
     enabled: false
     on_failure: continue
-    hide_label: true
     loglevel: warn

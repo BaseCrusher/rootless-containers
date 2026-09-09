@@ -3,20 +3,23 @@ hide_labels: true
 processes:
   load_secrets:
     type: prepare_secrets
+    enabled: false
   register:
     path: /usr/local/bin/cscli
     arguments: ["machines", "add", "localhost", "--auto", "--force"]
     type: one_shot
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
   install_collections:
     path: /usr/local/bin/cscli
     type: one_shot
     on_failure: continue
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
   add_bouncer:
     path: /usr/local/bin/cscli
     type: one_shot
@@ -26,7 +29,8 @@ processes:
       - "traefik;TRAEFIK"
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
       register:
         exit: success
   config:
@@ -36,13 +40,15 @@ processes:
     enabled: false
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
   crowdsec:
     path: /usr/local/bin/crowdsec
     type: service
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
       register:
         exit: success
       install_collections:

@@ -9,7 +9,7 @@ variable "CROWDSEC_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.9.1"
+  default = "v1.10.1"
 }
 
 # renovate: datasource=github-releases depName=BaseCrusher/envelope
@@ -18,7 +18,7 @@ variable "ENVELOPE_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "4.0"
+  default = "5.0"
 }
 
 group "default" {

@@ -572,7 +572,7 @@ cd traefik && docker buildx bake
 | `traefik-debug` | `${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}-debug`, `:${TRAEFIK_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
 `REGISTRY`, `TRAEFIK_VERSION`, `SUPERVISOR_VERSION`, `CROWDSEC_PLUGIN_VERSION`
-and `IMAGE_REVISION` (default `1.2`) are bake variables — override any from the
+and `IMAGE_REVISION` (default `3.1`) are bake variables — override any from the
 environment (`TRAEFIK_VERSION=v3.7.8 docker buildx bake …`).
 
 The upstream release tarball is named

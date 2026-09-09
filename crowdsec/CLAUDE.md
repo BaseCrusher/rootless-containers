@@ -87,17 +87,32 @@ default config path. Runtime configuration is a file on disk
 process only *writes* the `.local` overlay from env and is off by default, so by
 default nothing here templates `config.yaml` — it is used as mounted.
 
-- `load_secrets` — `prepare_secrets`, the built-in supervisor type (1.9.1), first
-  and enabled by default. For every `NAME_FILE` env var pointing at a path it reads
-  the file and writes `env_dir/NAME`, which the supervisor auto-loads into every
-  later process's environment — the Docker `*_FILE` convention that `cscli`,
-  `crowdsec` and `envelope` do not implement themselves. With no `_FILE` vars set
-  it writes nothing and exits 0, a no-op. Every start-time process and `crowdsec`
-  `depends_on` it `exit: any`: the barrier orders it first (so the file is on disk
-  before a consumer reads env), and `any` keeps a disabled or no-op `load_secrets`
-  from skipping anything. It keeps the default `on_failure: fail`, so if it
-  cannot read a file a `_FILE` points at, that aborts the container loudly rather
-  than starting without the credential — the `any` edges do not soften that. `env_dir` defaults
+- `load_secrets` — `prepare_secrets`, the built-in supervisor type, first and
+  **disabled by default** — the same opt-in-helper shape as coredns' `a-records`.
+  When enabled it reads the `*_FILE` variables named in its `secrets:` list, and for
+  each `NAME_FILE` pointing at a path writes `env_dir/NAME`, which the supervisor
+  auto-loads into every later process's environment — the Docker `*_FILE` convention
+  that `cscli`, `crowdsec` and `envelope` do not implement themselves. It is off by
+  default because the secret set is operator-defined at runtime (arbitrary bouncer
+  keys, db passwords, acquisition tokens) and cannot be enumerated at build time:
+  the common deployment uses no `_FILE` secret and should run no no-op process. An
+  operator opts in by flipping `SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED=true`,
+  mounting each `_FILE` var, and naming it in the list, e.g.
+  `SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0=BOUNCER_KEY_TRAEFIK_FILE`. The
+  explicit list is the 1.9.2 model — before it, `prepare_secrets` auto-scanned every
+  `*_FILE` and needed no list; 1.9.2..1.10.0 then rejected an empty list as a fatal
+  startup error, so **1.10.1** is the floor here because it made an empty/omitted
+  list a clean no-op again (enabling `load_secrets` without a list must not crash).
+  A *listed* var that is unset, or whose file cannot be read, fails the process.
+  Every start-time process and `crowdsec` `depends_on` it
+  `exit: success, ignore_exit_when_disabled: true` (container-supervisor 1.10.0+) —
+  the same edge coredns' `corefile-gen` puts on `a-records`: the barrier orders it
+  first (so the file is on disk before a consumer reads env), `ignore_exit_when_disabled`
+  lets the default-disabled `load_secrets` pass the gate rather than skip every
+  dependent, and `success` still requires it to succeed *when enabled*. It keeps the
+  default `on_failure: fail`, so if an enabled `load_secrets` cannot read a file a
+  `_FILE` points at, that aborts the container loudly rather than starting without
+  the credential. `env_dir` defaults
   to `/container-supervisor/supervisor_environment` (beside the config); that
   directory is pre-created `--chown=65532:65532` in the Dockerfile because
   `/container-supervisor` itself is root-owned and the process runs every start.
@@ -120,8 +135,8 @@ default nothing here templates `config.yaml` — it is used as mounted.
 - `add_bouncer` — `one_shot`, `on_failure: continue`, a `for_each` process that
   runs `cscli bouncers add {{1}} -k $(BOUNCER_KEY_{{2}})` once per row. Each
   `;`-field row is `<bouncer-name>;<KEY_SUFFIX>`; the key is expanded at launch
-  from `BOUNCER_KEY_<SUFFIX>`, which `load_secrets` materialises from a mounted
-  `_FILE` Secret, so it is never in the manifest. Unlike `install_collections` it
+  from `BOUNCER_KEY_<SUFFIX>`, which an enabled `load_secrets` materialises from a
+  mounted `_FILE` Secret, so it is never in the manifest. Unlike `install_collections` it
   **does** `depends_on register: success` — `bouncers add` writes the LAPI
   database `register` creates — so it is skipped in the remote-LAPI setup where
   `register` is off, which is correct (bouncers belong on the remote LAPI there).
