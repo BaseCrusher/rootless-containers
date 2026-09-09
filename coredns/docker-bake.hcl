@@ -14,7 +14,7 @@ variable "COREFILE_GEN_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.10.0"
+  default = "v1.10.1"
 }
 
 variable "IMAGE_REVISION" {
