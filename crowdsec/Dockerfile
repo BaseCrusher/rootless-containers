@@ -1,6 +1,6 @@
 ARG BASE_IMAGE=gcr.io/distroless/static-debian13:nonroot
 # renovate: datasource=docker depName=crowdsecurity/crowdsec
-ARG CROWDSEC_VERSION=v1.7.8
+ARG CROWDSEC_VERSION=v1.8.1
 
 FROM crowdsecurity/crowdsec:${CROWDSEC_VERSION:?} AS upstream
 
