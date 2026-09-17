@@ -60,7 +60,7 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   -e COREDNS_MYZONE_ZONE=example.org \
   -e COREDNS_MYZONE__file=db.example.org \
   -e COREDNS_MYZONE__log= \
-  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-5.5
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-6.2
 ```
 
 That produces and runs:
@@ -117,13 +117,14 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   -e SUPERVISOR_PROCESSES__A-RECORDS__ENABLED=true \
   -e COREDNS_MAIN_ZONE=example.org \
   -e COREDNS_MAIN__records___AT__1='60 IN SOA ns hostmaster 1 60 60 60 60' \
-  -e COREDNSARECORDS_MAIN='1.2.3.4,5.6.7.8' \
-  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-5.5
+  -e COREDNSARECORDS_MAIN='300 1.2.3.4,5.6.7.8' \
+  ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-6.2
 ```
 
 `<GROUP>` in `COREDNSARECORDS_<GROUP>` is the same server-block group used by the
-`COREDNS_<GROUP>_*` variables. The helper appends one `@ IN A <ip>` record per
-comma-separated IP, numbered **after** the highest existing
+`COREDNS_<GROUP>_*` variables. The value is a **TTL, a space, then the
+comma-separated IP list** (`<ttl> ip1,ip2,…`). The helper appends one
+`@ <ttl> IN A <ip>` record per IP, numbered **after** the highest existing
 `COREDNS_<GROUP>__records___AT__<N>` in that block — so it slots in below your
 static SOA/NS records without you tracking indices. The example above yields:
 
@@ -131,8 +132,8 @@ static SOA/NS records without you tracking indices. The example above yields:
 example.org:53 {
     records {
         @ 60 IN SOA ns hostmaster 1 60 60 60 60
-        @ IN A 1.2.3.4
-        @ IN A 5.6.7.8
+        @ 300 IN A 1.2.3.4
+        @ 300 IN A 5.6.7.8
     }
 }
 ```
@@ -147,9 +148,9 @@ Notes:
   env var name is fine for `docker -e`/Compose; on Kubernetes it needs the
   `RelaxedEnvironmentVariableValidation` feature gate (default-on in recent
   releases).
-- Records are emitted without an explicit TTL, so the zone default (SOA minimum)
-  applies. Set a TTL on the individual `A` records with the plain
-  `COREDNS_<GROUP>__records___AT__<N>` form if you need one.
+- The leading field is the TTL applied to every IP in the list. Omit it (pass
+  just the IP list, no leading space) to emit records without an explicit TTL, so
+  the zone default (SOA minimum) applies.
 - The list lives outside the `COREDNS_` namespace (`COREDNSARECORDS_`), so
   `corefile-gen` never sees it — the helper is the only reader.
 
@@ -169,8 +170,8 @@ platforms:
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:v1.14.7-5.5`, `:v1.14.7-5`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
-| `:v1.14.7-5.5-debug`, `:v1.14.7-5-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
+| `:v1.14.7-6.2`, `:v1.14.7-6`, `:latest` | `gcr.io/distroless/static-debian13:nonroot` | what you want in production |
+| `:v1.14.7-6.2-debug`, `:v1.14.7-6-debug`, `:latest-debug` | `gcr.io/distroless/static-debian13:debug-nonroot` | identical, plus a busybox shell at `/busybox/sh` for `docker exec` |
 
 All under `ghcr.io/basecrusher/rootless-containers/coredns`. Tags are
 `<version>-Y.Z`: `<version>` is `COREDNS_VERSION` (what gets built, so the two

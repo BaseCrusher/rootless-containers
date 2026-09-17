@@ -32,7 +32,14 @@ func expand(environ []string) map[string]string {
 		}
 	}
 	out := map[string]string{}
-	for g, list := range zones {
+	for g, spec := range zones {
+		ttl, list, hasTTL := strings.Cut(strings.TrimSpace(spec), " ")
+		rr := "IN A "
+		if hasTTL {
+			rr = ttl + " IN A "
+		} else {
+			list = ttl
+		}
 		i := maxIndex[g]
 		for _, ip := range strings.Split(list, ",") {
 			ip = strings.TrimSpace(ip)
@@ -40,7 +47,7 @@ func expand(environ []string) map[string]string {
 				continue
 			}
 			i++
-			out[fmt.Sprintf("COREDNS_%s__records___AT__%d", g, i)] = "IN A " + ip
+			out[fmt.Sprintf("COREDNS_%s__records___AT__%d", g, i)] = rr + ip
 		}
 	}
 	return out

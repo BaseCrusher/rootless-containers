@@ -142,8 +142,9 @@ still binds without root.
 A third process, `a-records`, runs *before* `corefile-gen`. It exists because
 `corefile-gen` renders one directive per env var: repeating an `A` record means
 a hand-numbered `COREDNS_<GROUP>__records___AT__<N>` per IP. The helper lets you
-pass the whole pool in one variable, `COREDNSARECORDS_<GROUP>=ip1,ip2,…`, and
-expands it into those numbered vars.
+pass the whole pool in one variable, `COREDNSARECORDS_<GROUP>=<ttl> ip1,ip2,…`
+(a TTL, a space, then the comma-separated IPs), and expands it into those
+numbered vars.
 
 It is a tiny Go program built from source in the build stage (`go build` into
 `/coredns_temp/a-records`, so it ships next to `coredns` at `/home/nonroot`), not
@@ -184,8 +185,9 @@ and exits 0.
 
 It appends after the highest existing index in each group (computed from the
 `COREDNS_<GROUP>__records___AT__<N>` vars already in the environment, so static
-SOA/NS records keep their slots) and emits `@ IN A <ip>` with no explicit TTL,
-leaving the zone default to apply.
+SOA/NS records keep their slots) and emits `@ <ttl> IN A <ip>` using the TTL
+from the leading field; with no leading TTL it emits `@ IN A <ip>`, leaving the
+zone default to apply.
 
 ## Image layout
 

@@ -4,14 +4,14 @@ import "testing"
 
 func TestExpandAppendsAfterExisting(t *testing.T) {
 	env := []string{
-		"COREDNSARECORDS_MAIN=1.2.3.4, 5.6.7.8",
+		"COREDNSARECORDS_MAIN=300 1.2.3.4, 5.6.7.8",
 		"COREDNS_MAIN__records___AT__1=60 IN SOA ns hostmaster 1 60 60 60 60",
 		"COREDNS_MAIN__records___AT__2=60 IN NS ns.example.org.",
 		"COREDNS_MAIN_ZONE=example.org",
 	}
 	want := map[string]string{
-		"COREDNS_MAIN__records___AT__3": "IN A 1.2.3.4",
-		"COREDNS_MAIN__records___AT__4": "IN A 5.6.7.8",
+		"COREDNS_MAIN__records___AT__3": "300 IN A 1.2.3.4",
+		"COREDNS_MAIN__records___AT__4": "300 IN A 5.6.7.8",
 	}
 	got := expand(env)
 	if len(got) != len(want) {

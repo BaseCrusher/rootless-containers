@@ -57,7 +57,7 @@ probe.
 ## Usage
 
 ```sh
-docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-3.2
+docker run --rm ghcr.io/basecrusher/rootless-containers/coredns:v1.14.7-6.2
 ```
 
 Or build it yourself:
