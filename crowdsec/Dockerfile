@@ -1,6 +1,5 @@
 ARG BASE_IMAGE=gcr.io/distroless/static-debian13:nonroot
-# renovate: datasource=docker depName=crowdsecurity/crowdsec
-ARG CROWDSEC_VERSION=v1.7.8
+ARG CROWDSEC_VERSION
 
 FROM crowdsecurity/crowdsec:${CROWDSEC_VERSION:?} AS upstream
 
@@ -31,8 +30,22 @@ RUN wget -q -O envelope \
     https://github.com/BaseCrusher/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x envelope
 
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS healthcheck-build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /healthcheck
+
+COPY --from=healthcheck . .
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    go build -o healthcheck .
+
 FROM $BASE_IMAGE
 COPY --from=upstream /usr/local/bin/crowdsec /usr/local/bin/cscli /usr/local/bin/
+COPY --from=healthcheck-build /healthcheck/healthcheck /usr/local/bin/healthcheck
 COPY --from=config /staging/container-supervisor /staging/envelope /usr/local/bin/
 COPY --from=config --chown=65532:65532 /staging/etc/crowdsec/ /etc/crowdsec/
 COPY --from=config --chown=65532:65532 /staging/var/lib/crowdsec/ /var/lib/crowdsec/

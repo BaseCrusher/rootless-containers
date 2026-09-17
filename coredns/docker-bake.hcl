@@ -18,7 +18,7 @@ variable "SUPERVISOR_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "5.7"
+  default = "6.0"
 }
 
 group "default" {
@@ -27,6 +27,9 @@ group "default" {
 
 target "coredns" {
   context    = "."
+  contexts   = {
+    healthcheck = "../_shared/healthcheck"
+  }
   dockerfile = "Dockerfile"
   args       = {
     COREDNS_VERSION       = COREDNS_VERSION

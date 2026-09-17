@@ -44,6 +44,16 @@ runs as an unprivileged user, not root.
   package manager. Runs as `nonroot`; mount your kubeconfig at
   `/home/nonroot/.kube/config`.
 
+### Health checks
+
+The three HTTP services (`coredns`, `crowdsec`, `traefik`) bundle a tiny static
+`healthcheck` binary — built once from `_shared/healthcheck`, a stdlib Go GET
+that exits non-zero on any non-`200` — so a shell-less image can still run a
+binary-form `HEALTHCHECK`. It is shipped, not baked in, because each service's
+health endpoint is opt-in; the per-image README gives the line. `valkey` bakes a
+`valkey-cli ping` check instead, and `kubectl` is a one-shot CLI with nothing to
+probe.
+
 ## Usage
 
 ```sh

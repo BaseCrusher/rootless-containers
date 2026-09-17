@@ -24,6 +24,19 @@ COPY access-log-exporter/ .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     go build -o access-log-exporter .
 
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS healthcheck-build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /healthcheck
+
+COPY --from=healthcheck . .
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    go build -o healthcheck .
+
 FROM --platform=$BUILDPLATFORM debian:trixie-slim AS build
 
 ARG TARGETARCH
@@ -49,6 +62,7 @@ RUN curl -fsSL -o container-supervisor \
     && chmod +x container-supervisor
 COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
 COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./access-log-exporter
+COPY --from=healthcheck-build /healthcheck/healthcheck ./healthcheck
 COPY certs.tmpl ./certs.tmpl
 RUN mkdir -p config/dynamic
 RUN mkdir -p plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin \

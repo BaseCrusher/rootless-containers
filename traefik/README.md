@@ -507,7 +507,14 @@ thing touching the socket, and it never has to run in this image.
 
 - **No shell.** `docker exec` and shell-form health checks do not work; use
   `docker logs`, Traefik's `ping` and `metrics` endpoints, or the `-debug` image
-  below.
+  below. A static `healthcheck` binary ships at `/home/nonroot/healthcheck` for a
+  binary-form `HEALTHCHECK`: it does a GET on the URL argument and exits non-zero
+  on anything but `200`. Enable the ping endpoint (`TRAEFIK_PING=true`, served on
+  an entrypoint you expose) and add:
+
+      HEALTHCHECK CMD ["/home/nonroot/healthcheck", "http://localhost:8080/ping"]
+
+  It is shipped but not baked in, because the ping endpoint is opt-in.
 - **Log lines are prefixed.** container-supervisor labels each process's output,
   so `docker logs` shows `[traefik    ] …` and `[certwatcher] …` rather than
   stock Traefik format. Anything parsing the logs has to strip the prefix.

@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=gcr.io/distroless/base-debian13:nonroot
-ARG VALKEY_VERSION=9.1.1
+ARG VALKEY_VERSION
 
 FROM valkey/valkey:${VALKEY_VERSION:?} AS upstream
 
@@ -21,4 +21,5 @@ USER nonroot:nonroot
 WORKDIR /data
 
 EXPOSE 6379
+HEALTHCHECK --interval=10s --timeout=3s CMD ["/usr/local/bin/valkey-cli", "ping"]
 ENTRYPOINT ["/usr/local/bin/valkey-server"]

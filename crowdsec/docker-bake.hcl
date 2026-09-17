@@ -18,7 +18,7 @@ variable "ENVELOPE_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "6.0"
+  default = "1.0"
 }
 
 group "default" {
@@ -27,6 +27,9 @@ group "default" {
 
 target "crowdsec" {
   context    = "."
+  contexts   = {
+    healthcheck = "../_shared/healthcheck"
+  }
   dockerfile = "Dockerfile"
   args       = {
     CROWDSEC_VERSION   = CROWDSEC_VERSION

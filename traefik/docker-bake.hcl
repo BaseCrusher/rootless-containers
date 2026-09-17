@@ -18,7 +18,7 @@ variable "CROWDSEC_PLUGIN_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "3.2"
+  default = "4.0"
 }
 
 group "default" {
@@ -27,6 +27,9 @@ group "default" {
 
 target "traefik" {
   context    = "."
+  contexts   = {
+    healthcheck = "../_shared/healthcheck"
+  }
   dockerfile = "Dockerfile"
   target     = "final"
   args       = {

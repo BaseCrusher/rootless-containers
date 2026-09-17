@@ -4,11 +4,11 @@ variable "REGISTRY" {
 
 # renovate: datasource=docker depName=valkey/valkey
 variable "VALKEY_VERSION" {
-  default = "9.1.1"
+  default = "9.1.2"
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.0"
+  default = "2.0"
 }
 
 group "default" {

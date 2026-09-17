@@ -96,7 +96,14 @@ and stops the container.
 individual files or a subdirectory; mounting over `/home/nonroot` itself hides
 the binaries and the container will not start. There is no shell in the image, so `docker exec` and shell-form health
 checks do not work; debug with `docker logs`, CoreDNS's own `health` and
-`prometheus` plugins, or the `-debug` image below.
+`prometheus` plugins, or the `-debug` image below. For a binary-form
+`HEALTHCHECK`, a static `healthcheck` binary ships at `/home/nonroot/healthcheck`
+— it does a GET on the URL argument and exits non-zero on anything but `200`.
+Enable the `health` plugin and add:
+
+    HEALTHCHECK CMD ["/home/nonroot/healthcheck", "http://localhost:8080/health"]
+
+It is shipped but not baked in, because the `health` plugin is opt-in.
 
 ### A records from a single variable
 

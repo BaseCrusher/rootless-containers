@@ -650,7 +650,14 @@ Two things that shared database changes, unrelated to the name:
 
 - **No shell.** `docker exec` works for the binaries in the image (`cscli`,
   `crowdsec`), not for shell-form commands or health checks. Use `cscli lapi
-  status`, the `/health` endpoint, or the `-debug` image below.
+  status`, the `/health` endpoint, or the `-debug` image below. A static
+  `healthcheck` binary ships at `/usr/local/bin/healthcheck` for a binary-form
+  `HEALTHCHECK` — a GET on the URL argument, non-zero exit on anything but `200`:
+
+      HEALTHCHECK CMD ["/usr/local/bin/healthcheck", "http://localhost:8080/health"]
+
+  Shipped but not baked in, so disabling the LAPI does not force an unhealthy
+  state.
 - **Log lines are unprefixed.** `supervisor.yml` sets `hide_labels: true`, so
   CrowdSec's output reaches `docker logs` in stock format and anything parsing
   it does not have to know a supervisor is running. The supervisor's own

@@ -73,6 +73,9 @@ RUN mkdir config
 COPY a-records /a-records
 RUN cd /a-records && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     GOFLAGS="-buildvcs=false" go build -o /coredns_temp/a-records .
+COPY --from=healthcheck . /healthcheck-src
+RUN cd /healthcheck-src && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    GOFLAGS="-buildvcs=false" go build -o /coredns_temp/healthcheck .
 RUN mkdir -p /container-supervisor/supervisor_environment
 
 FROM $BASE_IMAGE

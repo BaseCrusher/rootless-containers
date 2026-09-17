@@ -84,7 +84,10 @@ docker run ... -v ./valkey.conf:/etc/valkey/valkey.conf:ro \
 
 - **No shell.** `docker exec valkey valkey-cli ping` works (it is a binary in
   the image); shell-form commands and shell health checks do not. Use the
-  `-debug` image below when you need a shell.
+  `-debug` image below when you need a shell. The image bakes a `HEALTHCHECK`
+  that runs `valkey-cli ping` (binary form, no shell), so orchestrators get
+  liveness with no extra configuration. With `--requirepass` set, `ping` returns
+  `NOAUTH`: pass the password to the check via `REDISCLI_AUTH`.
 - **No `/tmp` writes as `nonroot`.** Mount a `tmpfs` if a feature needs one.
 
 CA certificates and the timezone database come with the distroless base, so TLS
