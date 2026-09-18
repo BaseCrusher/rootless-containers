@@ -1,7 +1,7 @@
 processes:
   config:
     path: /home/nonroot/envelope
-    arguments: ["-prefix", "TRAEFIKCONFIG_", "-out", "/home/nonroot/config/dynamic/config.yml"]
+    arguments: ["-prefix", "TRAEFIKCONFIG_", "-out", "/home/nonroot/config/config.yml"]
     type: one_shot
     enabled: false
   traefik:
@@ -9,7 +9,7 @@ processes:
     type: service
     depends_on:
       config:
-        exit: any
+        exit: success
   certwatcher:
     path: /home/nonroot/certwatcher
     type: ticker
