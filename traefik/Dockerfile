@@ -44,6 +44,7 @@ ARG TARGETVARIANT
 ARG TRAEFIK_VERSION
 ARG SUPERVISOR_VERSION
 ARG CROWDSEC_PLUGIN_VERSION
+ARG ENVELOPE_VERSION
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -60,10 +61,14 @@ RUN setcap cap_net_bind_service=+ep traefik
 RUN curl -fsSL -o container-supervisor \
     https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
+RUN curl -fsSL -o envelope \
+    https://github.com/BaseCrusher/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
+    && chmod +x envelope
 COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
 COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./access-log-exporter
 COPY --from=healthcheck-build /healthcheck/healthcheck ./healthcheck
 COPY certs.tmpl ./certs.tmpl
+COPY crowdsec-ban-page.html ./crowdsec-ban-page.html
 RUN mkdir -p config/dynamic
 RUN mkdir -p plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin \
     && curl -fsSL https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin/archive/refs/tags/${CROWDSEC_PLUGIN_VERSION:?}.tar.gz \

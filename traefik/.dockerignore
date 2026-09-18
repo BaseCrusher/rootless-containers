@@ -1,5 +1,6 @@
 *
 !certs.tmpl
+!crowdsec-ban-page.html
 !supervisor.yml
 !certwatcher
 !certwatcher/**

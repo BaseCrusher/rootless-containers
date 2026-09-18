@@ -38,7 +38,8 @@ runs as an unprivileged user, not root.
   source is baked in (pinned by `CROWDSEC_PLUGIN_VERSION`) and loaded offline as
   a local plugin. Configured through
   `TRAEFIK_*` env vars only; flags passed as container arguments do not reach
-  Traefik.
+  Traefik. An optional `envelope` step renders dynamic configuration from
+  `TRAEFIKCONFIG_`-prefixed env vars when mounting a file is awkward.
 - [kubectl](kubectl/) — `kubectl` on distroless: the upstream static binary
   copied out of `registry.k8s.io/kubectl` and nothing else — no shell, no
   package manager. Runs as `nonroot`; mount your kubeconfig at

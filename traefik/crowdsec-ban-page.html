@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access Denied</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;overflow:hidden}
+  .container{text-align:center;padding:2rem;max-width:520px;position:relative;z-index:1}
+  .shield{font-size:4rem;margin-bottom:1.5rem;display:inline-block;animation:pulse 2s ease-in-out infinite}
+  h1{font-size:1.8rem;font-weight:700;letter-spacing:-.02em;margin-bottom:.5rem;background:linear-gradient(135deg,#ff4444,#ff6b6b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .code{font-size:4.5rem;font-weight:800;color:#1a1a1a;letter-spacing:-.05em;line-height:1;margin-bottom:1rem;text-shadow:0 0 40px rgba(255,68,68,.15)}
+  p{color:#707070;font-size:.95rem;line-height:1.6;margin-bottom:.5rem}
+  .ref{font-family:monospace;font-size:.75rem;color:#333;margin-top:2rem}
+  .line{width:60px;height:2px;background:linear-gradient(90deg,transparent,#ff4444,transparent);margin:1.5rem auto;border-radius:1px}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.05);opacity:1}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="shield">&#x1f6e1;</div>
+  <div class="code">403</div>
+  <h1>Access Denied</h1>
+  <div class="line"></div>
+  <p>Your request has been blocked by our security system.</p>
+  <p>If you believe this is an error, please contact the site administrator.</p>
+  <div class="ref">REF: CROWDSEC-BAN</div>
+</div>
+</body>
+</html>

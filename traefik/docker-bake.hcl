@@ -17,8 +17,13 @@ variable "CROWDSEC_PLUGIN_VERSION" {
   default = "v1.7.1"
 }
 
+# renovate: datasource=github-releases depName=BaseCrusher/envelope
+variable "ENVELOPE_VERSION" {
+  default = "v1.1.1"
+}
+
 variable "IMAGE_REVISION" {
-  default = "4.1"
+  default = "5.0"
 }
 
 group "default" {
@@ -36,6 +41,7 @@ target "traefik" {
     TRAEFIK_VERSION         = TRAEFIK_VERSION
     SUPERVISOR_VERSION      = SUPERVISOR_VERSION
     CROWDSEC_PLUGIN_VERSION = CROWDSEC_PLUGIN_VERSION
+    ENVELOPE_VERSION        = ENVELOPE_VERSION
   }
   tags       = [
     "${REGISTRY}/traefik:${TRAEFIK_VERSION}-${IMAGE_REVISION}",

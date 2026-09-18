@@ -48,6 +48,7 @@ A static configuration file is `TRAEFIK_CONFIGFILE`, not `--configFile`.
 | certwatcher | `certwatcher/` in this folder | built from source with the image |
 | access-log-exporter | `access-log-exporter/` in this folder | built from source with the image |
 | crowdsec-bouncer plugin | [maxlerebourg/crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) | `CROWDSEC_PLUGIN_VERSION` |
+| envelope | [envelope](https://github.com/BaseCrusher/envelope) | `ENVELOPE_VERSION` — renders dynamic config from env, [off by default](#generating-dynamic-config-from-env-vars) |
 
 ## Usage
 
@@ -455,6 +456,56 @@ http:
 
 See the plugin's own README for the full option set. To use a different plugin
 version, rebuild with `CROWDSEC_PLUGIN_VERSION=vX.Y.Z docker buildx bake`.
+
+A styled 403 ban page is baked in at `/home/nonroot/crowdsec-ban-page.html`.
+Point the plugin at it to serve it to blocked clients:
+
+```yaml
+          banHTMLFilePath: /home/nonroot/crowdsec-ban-page.html
+```
+
+### Generating dynamic config from env vars
+
+When mounting a dynamic config file is awkward, `supervisor.yml` ships a `config`
+process that runs [`envelope`](https://github.com/BaseCrusher/envelope) to build
+`/home/nonroot/config/dynamic/config.yml` from `TRAEFIKCONFIG_`-prefixed
+variables before Traefik starts. It is **disabled by default**; enable it, point
+the file provider at the dynamic directory, and set the values:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__CONFIG__ENABLED: "true"
+      TRAEFIK_PROVIDERS_FILE_DIRECTORY: /home/nonroot/config/dynamic
+      TRAEFIKCONFIG_tls__options__default__sniStrict: "true"
+      TRAEFIKCONFIG_tls__options__default__minVersion: VersionTLS12
+      TRAEFIKCONFIG_tls__options__default__cipherSuites__0: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+      TRAEFIKCONFIG_tls__options__default__cipherSuites__1: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      TRAEFIKCONFIG_tls__options__default__cipherSuites__2: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+```
+
+writes `/home/nonroot/config/dynamic/config.yml`:
+
+```yaml
+tls:
+  options:
+    default:
+      sniStrict: true
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+```
+
+envelope's rules: `__` becomes nesting, a numeric segment becomes a list index
+(`…cipherSuites__0`), and the key is taken **verbatim** — write the Traefik keys
+in their own case under the uppercase `TRAEFIKCONFIG_` prefix. It writes the file
+directly (`-out`), and `traefik` `depends_on` it `exit: any`, so when enabled
+Traefik waits for the file and when disabled the step is skipped and startup
+proceeds. It shares the dynamic directory with `certwatcher`, so both can run at
+once. The output lands under `/home/nonroot/config` — if you mount that
+read-only, the write fails and, as a `one_shot` left at `on_failure: fail`,
+aborts the start rather than running against a stale file.
 
 ### The Docker provider requires a socket proxy
 
