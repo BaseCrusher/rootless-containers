@@ -228,8 +228,8 @@ each keeps its own offset beside its own log file.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENABLED` | `false` | set to `true` to run access-log-exporter at all |
-| `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__TICKER` | `@every 5s` | how often it runs. The `@every` prefix is mandatory |
+| `SUPERVISOR_PROCESSES__ACCESSLOG__ENABLED` | `false` | set to `true` to run access-log-exporter at all |
+| `SUPERVISOR_PROCESSES__ACCESSLOG__TICKER` | `@every 5s` | how often it runs. The `@every` prefix is mandatory |
 | `ACCESSLOGEXPORTER_URL` | — | POST target. `http://user:pass@host:8081/traefik` sends basic auth. Required once enabled; without it the process aborts |
 | `ACCESSLOGEXPORTER_FILE` | `/home/nonroot/config/access.log` | access log to read. Must match `TRAEFIK_ACCESSLOG_FILEPATH` |
 | `ACCESSLOGEXPORTER_STATE` | `<FILE>.offset` | where the byte offset is kept |
@@ -255,7 +255,7 @@ services:
   traefik:
     image: ghcr.io/basecrusher/rootless-containers/traefik:v3.7.9-1.0
     environment:
-      SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENABLED: "true"
+      SUPERVISOR_PROCESSES__ACCESSLOG__ENABLED: "true"
       ACCESSLOGEXPORTER_URL: http://traefik:change-me@crowdsec:8081/traefik
       TRAEFIK_ACCESSLOG_FILEPATH: /home/nonroot/config/access.log
       TRAEFIK_ACCESSLOG_FORMAT: json
@@ -335,18 +335,17 @@ file replaces the one in the image, so it has to declare `traefik` and
 
 ```yaml
 processes:
-  accesslogexporter:
+  accesslog:
     path: /home/nonroot/access-log-exporter
     type: ticker
     ticker: "@every 5s"
-    hide_label: true
     on_failure: continue
     environment:
       ACCESSLOGEXPORTER_HEADER_KEY: x-api-key
       ACCESSLOGEXPORTER_HEADER_VALUE: change-me
 ```
 
-The `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENVIRONMENT__*` override form does
+The `SUPERVISOR_PROCESSES__ACCESSLOG__ENVIRONMENT__*` override form does
 **not** work for this: container-supervisor lowercases the whole key path, so the
 process is handed `accesslogexporter_header_key` and nothing reads it. Set the
 variables on the container instead.
@@ -355,7 +354,7 @@ On Kubernetes only the URL changes — no volume, no host path, no sidecar:
 
 ```yaml
         env:
-          - name: SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__ENABLED
+          - name: SUPERVISOR_PROCESSES__ACCESSLOG__ENABLED
             value: "true"
           - name: ACCESSLOGEXPORTER_URL
             value: http://traefik:change-me@crowdsec.crowdsec.svc:8081/traefik
@@ -381,9 +380,10 @@ pointing it at a file to ship it takes those lines off the console.
 `ACCESSLOGEXPORTER_ECHO: "true"` puts them back — access-log-exporter prints
 every line it reads, so `docker logs` and `kubectl logs` still show them. They
 arrive up to
-one tick late and out of order with Traefik's own output; the process runs with
-`hide_label: true`, so they are unprefixed and parse like stock Traefik output.
-Traefik's application log (errors, ACME, routing) stays on stdout either way.
+one tick late and out of order with Traefik's own output, and carry the
+`[accesslog   ]` supervisor prefix like every other process — strip it to parse
+them as stock Traefik output. Traefik's application log (errors, ACME, routing)
+stays on stdout either way.
 
 #### Failure handling
 
@@ -517,15 +517,14 @@ thing touching the socket, and it never has to run in this image.
   It is shipped but not baked in, because the ping endpoint is opt-in.
 - **Log lines are prefixed.** container-supervisor labels each process's output,
   so `docker logs` shows `[traefik    ] …` and `[certwatcher] …` rather than
-  stock Traefik format. Anything parsing the logs has to strip the prefix.
-  `access-log-exporter` is the exception — it runs with `hide_label: true` so
-  echoed access lines stay unprefixed. The two 5s tickers (`certwatcher`,
-  `access-log-exporter`) each set `loglevel: warn` in `supervisor.yml`, which
+  stock Traefik format. Anything parsing the logs has to strip the prefix,
+  echoed access lines (`[accesslog   ]`) included. The two 5s tickers
+  (`certwatcher`, `accesslog`) each set `loglevel: warn` in `supervisor.yml`, which
   mutes the supervisor's own `INF starting process` / `process exited
   successfully` lifecycle lines for those processes (noise every 5s) without
   touching their own output or the `traefik` service's INF logs. Override per
   process with `SUPERVISOR_PROCESSES__CERTWATCHER__LOGLEVEL` /
-  `SUPERVISOR_PROCESSES__ACCESSLOGEXPORTER__LOGLEVEL` (`info` restores them).
+  `SUPERVISOR_PROCESSES__ACCESSLOG__LOGLEVEL` (`info` restores them).
 - **No timezone database.** Go falls back to UTC, so logs and time-based
   middleware are in UTC regardless of `TZ`.
 - **No `/etc/passwd`.** The container runs as numeric uid/gid `65532`, which is
