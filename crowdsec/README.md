@@ -311,70 +311,81 @@ to register **one bouncer per row** from a single definition:
     path: /usr/local/bin/register-bouncer
     type: one_shot
     on_failure: continue
-    arguments: ["{{1}}", "--key-raw", "$(BOUNCER_KEY_{{2}})"]
+    arguments: ["{{1}}", "{{2}}", "{{3}}"]
     for_each:
-      - "traefik;TRAEFIK"
+      - "traefik;--key-raw;TRAEFIK"
     depends_on:
       load_secrets:
-        exit: any
+        exit: success
+        ignore_exit_when_disabled: true
       register:
         exit: success
 ```
 
 `crowdsec` `depends_on add_bouncer exit: any`, so the agent waits for it and a
-failed or skipped registration never blocks startup. To use it, mount the key and
-point its `_FILE` twin at the mount:
+failed or skipped registration never blocks startup.
+
+Each `for_each` row is three `;`-separated fields — **bouncer name**, **key
+flag**, **key value** — substituted into `arguments` as `{{1}} {{2}} {{3}}`, so
+`traefik;--key-raw;TRAEFIK` runs `register-bouncer traefik --key-raw TRAEFIK`.
+Putting the flag in the row makes the key *source* a per-bouncer choice; the
+shipped `TRAEFIK` is a literal placeholder (harmless under `on_failure:
+continue`), and a real deployment overrides the row with the source it wants.
+
+**Key straight from a mounted file** — no `load_secrets`; `register-bouncer`
+reads the file itself:
+
+```yaml
+    environment:
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: "traefik;--key-file;/run/secrets/traefik-bouncer-key"
+    secrets:
+      - traefik-bouncer-key
+```
+
+**Key from an env var** — `--key-env` names the variable and `register-bouncer`
+reads it, so the key stays out of the manifest:
+[`load_secrets`](#loading-secrets-from-files-_file) materialises
+`BOUNCER_KEY_TRAEFIK` from a mounted Secret (`BOUNCER_KEY_TRAEFIK_FILE`, named in
+its `secrets:` list) into the supervisor's env, and the row points `--key-env` at
+that name — so the key is a property of a Kubernetes Secret or Swarm config, not
+something you `docker exec` once:
 
 ```yaml
     environment:
       SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED: "true"
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: "traefik;--key-env;BOUNCER_KEY_TRAEFIK"
       BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/CROWDSEC_BOUNCER_KEY
       SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0: BOUNCER_KEY_TRAEFIK_FILE
     secrets:
       - CROWDSEC_BOUNCER_KEY
 ```
 
-How the pieces fit:
+How the rest fits:
 
-- **`for_each`** turns one process into one instance per row. Each row is
-  `;`-separated fields; `{{1}}`, `{{2}}` in `arguments` are replaced by that row's
-  fields, so `traefik;TRAEFIK` runs `register-bouncer traefik --key-raw
-  $(BOUNCER_KEY_TRAEFIK)`. The two fields are the **bouncer name** (as CrowdSec
-  stores it) and the **key-variable suffix** (uppercase, matching the secret) —
-  keeping them separate lets the name stay lowercase while the env var follows the
-  `BOUNCER_KEY_*` convention. An empty `for_each` is a fatal supervisor error, so
-  the shipped list carries the `traefik` default rather than nothing.
 - **`register-bouncer`** is a small stdlib Go binary built here (source under
   `register-bouncer/`) that takes the bouncer name as its first argument and the
   key from exactly one of `--key-raw`, `--key-env <VAR>` or `--key-file <path>`,
-  then execs `cscli bouncers add <name> -k <key>`. The shipped process uses
-  `--key-raw`; `--key-env`/`--key-file` let a process read the key straight from an
-  env var or a mounted file instead. Flags follow the name, e.g.
-  `register-bouncer traefik --key-file /run/secrets/traefik-key`.
-- **`$(BOUNCER_KEY_TRAEFIK)`** is expanded from the environment at launch. The key
-  never appears in the manifest: `BOUNCER_KEY_TRAEFIK_FILE` points
-  [`load_secrets`](#loading-secrets-from-files-_file) at a mounted Secret and is
-  named in its `secrets:` list (as above), so it writes `BOUNCER_KEY_TRAEFIK` into
-  the supervisor's env, and `add_bouncer` — which `depends_on load_secrets` — reads
-  it there. So the key is a property of a
-  Kubernetes Secret or Swarm config, not something you `docker exec` once.
+  then execs `cscli bouncers add <name> -k <key>`. Flags follow the name. `--key-env`
+  reads the key from the named env var; `--key-file` reads (and trims) it from a path.
 - **`depends_on register: success`** because `bouncers add` writes the LAPI
   database that `register` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
   setup where `register` is disabled, `add_bouncer` is skipped — add bouncers on
   the remote LAPI there.
 - **`on_failure: continue`** makes re-adding an already-registered bouncer
   harmless: the second start's `bouncers add` fails, the row keeps the key you
-  first passed, and startup proceeds. It also absorbs the default `traefik` row
-  when no `BOUNCER_KEY_TRAEFIK` is set.
+  first passed, and startup proceeds. It also absorbs the shipped `traefik`
+  placeholder row when it is left in place.
+- An empty `for_each` is a fatal supervisor error, so the shipped list carries the
+  `traefik` placeholder rather than nothing.
 
 Register **more or different bouncers** by overriding the row list from env —
-each `FOR_EACH__N` is one bouncer, with its own `BOUNCER_KEY_<SUFFIX>_FILE`:
+each `FOR_EACH__N` is one bouncer, name/flag/value:
 
 ```yaml
     environment:
       SUPERVISOR_PROCESSES__LOAD_SECRETS__ENABLED: "true"
-      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: traefik;TRAEFIK
-      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__1: metrics;METRICS
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__0: "traefik;--key-env;BOUNCER_KEY_TRAEFIK"
+      SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__1: "metrics;--key-env;BOUNCER_KEY_METRICS"
       BOUNCER_KEY_TRAEFIK_FILE: /run/secrets/traefik-bouncer-key
       BOUNCER_KEY_METRICS_FILE: /run/secrets/metrics-bouncer-key
       SUPERVISOR_PROCESSES__LOAD_SECRETS__SECRETS__0: BOUNCER_KEY_TRAEFIK_FILE
@@ -713,7 +724,7 @@ cd crowdsec && docker buildx bake
 | `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:${CROWDSEC_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSEC_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.2`) are bake
+`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.3`) are bake
 variables — override any from the environment
 (`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
 compiled and nothing is emulated: the binaries come from the upstream image for
