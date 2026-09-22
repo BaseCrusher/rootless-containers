@@ -24,7 +24,7 @@ processes:
     path: /usr/local/bin/register-bouncer
     type: one_shot
     on_failure: continue
-    arguments: ["{{1}}", "{{2}}", "{{3}}"]
+    arguments: ["{{1}}", "{{2}}", "{{3}}", "--force"]
     for_each:
       - "traefik;--key-raw;TRAEFIK"
     depends_on:

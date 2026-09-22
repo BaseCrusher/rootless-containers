@@ -23,6 +23,7 @@ func main() {
 	keyRaw := fs.String("key-raw", "", "bouncer key given literally")
 	keyEnv := fs.String("key-env", "", "name of an env var holding the bouncer key")
 	keyFile := fs.String("key-file", "", "path to a file holding the bouncer key")
+	force := fs.Bool("force", false, "pass --force through to cscli bouncers add")
 	fs.Parse(os.Args[2:])
 
 	key, err := resolveKey(*keyRaw, *keyEnv, *keyFile)
@@ -31,6 +32,9 @@ func main() {
 	}
 
 	argv := []string{cscli, "bouncers", "add", name, "-k", key}
+	if *force {
+		argv = append(argv, "--force")
+	}
 	if err := syscall.Exec(cscli, argv, os.Environ()); err != nil {
 		log.Fatalf("exec %s: %v", cscli, err)
 	}
