@@ -311,7 +311,7 @@ to register **one bouncer per row** from a single definition:
     path: /usr/local/bin/register-bouncer
     type: one_shot
     on_failure: continue
-    arguments: ["{{1}}", "{{2}}", "{{3}}"]
+    arguments: ["{{1}}", "{{2}}", "{{3}}", "--force"]
     for_each:
       - "traefik;--key-raw;TRAEFIK"
     depends_on:
@@ -327,10 +327,12 @@ failed or skipped registration never blocks startup.
 
 Each `for_each` row is three `;`-separated fields — **bouncer name**, **key
 flag**, **key value** — substituted into `arguments` as `{{1}} {{2}} {{3}}`, so
-`traefik;--key-raw;TRAEFIK` runs `register-bouncer traefik --key-raw TRAEFIK`.
-Putting the flag in the row makes the key *source* a per-bouncer choice; the
-shipped `TRAEFIK` is a literal placeholder (harmless under `on_failure:
-continue`), and a real deployment overrides the row with the source it wants.
+`traefik;--key-raw;TRAEFIK` runs `register-bouncer traefik --key-raw TRAEFIK
+--force`. Putting the flag in the row makes the key *source* a per-bouncer choice;
+the shipped `TRAEFIK` is a literal placeholder (harmless under `on_failure:
+continue`), and a real deployment overrides the row with the source it wants. The
+trailing `--force` is a fixed argument, not a row field, so it applies to every
+bouncer.
 
 **Key straight from a mounted file** — no `load_secrets`; `register-bouncer`
 reads the file itself:
@@ -367,14 +369,20 @@ How the rest fits:
   key from exactly one of `--key-raw`, `--key-env <VAR>` or `--key-file <path>`,
   then execs `cscli bouncers add <name> -k <key>`. Flags follow the name. `--key-env`
   reads the key from the named env var; `--key-file` reads (and trims) it from a path.
+- **`--force`** makes the registration idempotent. `cscli bouncers add` has no
+  `--force` of its own and fails with `already exists` on the second start, so
+  `register-bouncer` first runs `cscli bouncers delete <name>` (a no-op the first
+  time) and then re-adds it with the current key. This means every restart rewrites
+  the bouncer to the mounted key; drop the flag if you would rather a restart leave
+  an existing bouncer untouched (and tolerate the `already exists` line).
 - **`depends_on register: success`** because `bouncers add` writes the LAPI
   database that `register` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
   setup where `register` is disabled, `add_bouncer` is skipped — add bouncers on
   the remote LAPI there.
-- **`on_failure: continue`** makes re-adding an already-registered bouncer
-  harmless: the second start's `bouncers add` fails, the row keeps the key you
-  first passed, and startup proceeds. It also absorbs the shipped `traefik`
-  placeholder row when it is left in place.
+- **`on_failure: continue`** keeps a registration failure — LAPI unreachable, a
+  bad key, or (without `--force`) an `already exists` re-add — from aborting the
+  container. It also absorbs the shipped `traefik` placeholder row when it is left
+  in place.
 - An empty `for_each` is a fatal supervisor error, so the shipped list carries the
   `traefik` placeholder rather than nothing.
 

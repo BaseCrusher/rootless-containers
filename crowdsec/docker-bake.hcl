@@ -18,7 +18,7 @@ variable "ENVELOPE_VERSION" {
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.4"
+  default = "1.5"
 }
 
 group "default" {

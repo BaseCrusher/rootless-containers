@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"syscall"
 )
@@ -23,7 +24,7 @@ func main() {
 	keyRaw := fs.String("key-raw", "", "bouncer key given literally")
 	keyEnv := fs.String("key-env", "", "name of an env var holding the bouncer key")
 	keyFile := fs.String("key-file", "", "path to a file holding the bouncer key")
-	force := fs.Bool("force", false, "pass --force through to cscli bouncers add")
+	force := fs.Bool("force", false, "replace an existing bouncer of this name (delete then add); makes restarts idempotent")
 	fs.Parse(os.Args[2:])
 
 	key, err := resolveKey(*keyRaw, *keyEnv, *keyFile)
@@ -31,10 +32,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	argv := []string{cscli, "bouncers", "add", name, "-k", key}
 	if *force {
-		argv = append(argv, "--force")
+		// cscli bouncers add has no --force, so drop any existing row first and let
+		// the add below recreate it with this key. Best-effort: a missing bouncer
+		// makes delete fail, which is exactly the case add then handles.
+		exec.Command(cscli, "bouncers", "delete", name).Run()
 	}
+
+	argv := []string{cscli, "bouncers", "add", name, "-k", key}
 	if err := syscall.Exec(cscli, argv, os.Environ()); err != nil {
 		log.Fatalf("exec %s: %v", cscli, err)
 	}
