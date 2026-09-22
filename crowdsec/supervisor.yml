@@ -21,10 +21,10 @@ processes:
         exit: success
         ignore_exit_when_disabled: true
   add_bouncer:
-    path: /usr/local/bin/cscli
+    path: /usr/local/bin/register-bouncer
     type: one_shot
     on_failure: continue
-    arguments: ["bouncers", "add", "{{1}}", "-k", "$(BOUNCER_KEY_{{2}})"]
+    arguments: ["{{1}}", "--key-raw", "$(BOUNCER_KEY_{{2}})"]
     for_each:
       - "traefik;TRAEFIK"
     depends_on:

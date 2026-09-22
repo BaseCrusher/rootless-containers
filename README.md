@@ -17,7 +17,9 @@ runs as an unprivileged user, not root.
   own `config.yaml` (a ConfigMap) to change settings, baked `cscli` slots in
   `container-supervisor` install collections and register bouncers (`for_each`,
   one per bouncer) before the agent starts, and `docker exec cscli …` does the
-  rest. Notification plugins are not included.
+  rest. Bouncers are registered through a small `register-bouncer` helper that
+  takes the key from a flag, an env var (`--key-env`) or a mounted file
+  (`--key-file`). Notification plugins are not included.
 - [valkey](valkey/) — Valkey on distroless: the upstream `valkey-server` and
   `valkey-cli` binaries copied out of `valkey/valkey` (the Debian, glibc image),
   with only the four libraries the base lacks (`libsystemd`, `libcap`, `libz`,

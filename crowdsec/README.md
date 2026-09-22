@@ -308,10 +308,10 @@ to register **one bouncer per row** from a single definition:
 
 ```yaml
   add_bouncer:
-    path: /usr/local/bin/cscli
+    path: /usr/local/bin/register-bouncer
     type: one_shot
     on_failure: continue
-    arguments: ["bouncers", "add", "{{1}}", "-k", "$(BOUNCER_KEY_{{2}})"]
+    arguments: ["{{1}}", "--key-raw", "$(BOUNCER_KEY_{{2}})"]
     for_each:
       - "traefik;TRAEFIK"
     depends_on:
@@ -338,12 +338,19 @@ How the pieces fit:
 
 - **`for_each`** turns one process into one instance per row. Each row is
   `;`-separated fields; `{{1}}`, `{{2}}` in `arguments` are replaced by that row's
-  fields, so `traefik;TRAEFIK` runs `cscli bouncers add traefik -k
+  fields, so `traefik;TRAEFIK` runs `register-bouncer traefik --key-raw
   $(BOUNCER_KEY_TRAEFIK)`. The two fields are the **bouncer name** (as CrowdSec
   stores it) and the **key-variable suffix** (uppercase, matching the secret) —
   keeping them separate lets the name stay lowercase while the env var follows the
   `BOUNCER_KEY_*` convention. An empty `for_each` is a fatal supervisor error, so
   the shipped list carries the `traefik` default rather than nothing.
+- **`register-bouncer`** is a small stdlib Go binary built here (source under
+  `register-bouncer/`) that takes the bouncer name as its first argument and the
+  key from exactly one of `--key-raw`, `--key-env <VAR>` or `--key-file <path>`,
+  then execs `cscli bouncers add <name> -k <key>`. The shipped process uses
+  `--key-raw`; `--key-env`/`--key-file` let a process read the key straight from an
+  env var or a mounted file instead. Flags follow the name, e.g.
+  `register-bouncer traefik --key-file /run/secrets/traefik-key`.
 - **`$(BOUNCER_KEY_TRAEFIK)`** is expanded from the environment at launch. The key
   never appears in the manifest: `BOUNCER_KEY_TRAEFIK_FILE` points
   [`load_secrets`](#loading-secrets-from-files-_file) at a mounted Secret and is
@@ -706,7 +713,7 @@ cd crowdsec && docker buildx bake
 | `crowdsec` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}`, `:${CROWDSEC_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 | `crowdsec-debug` | `${REGISTRY}/crowdsec:${CROWDSEC_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSEC_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64`, `linux/arm/v7` |
 
-`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.1`) are bake
+`REGISTRY`, `CROWDSEC_VERSION` and `IMAGE_REVISION` (default `1.2`) are bake
 variables — override any from the environment
 (`CROWDSEC_VERSION=v1.7.7 docker buildx bake …`). Nothing is
 compiled and nothing is emulated: the binaries come from the upstream image for

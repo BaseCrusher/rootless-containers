@@ -43,9 +43,23 @@ COPY --from=healthcheck . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     go build -o healthcheck .
 
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS register-bouncer-build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /register-bouncer
+
+COPY register-bouncer/ .
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    go build -o register-bouncer .
+
 FROM $BASE_IMAGE
 COPY --from=upstream /usr/local/bin/crowdsec /usr/local/bin/cscli /usr/local/bin/
 COPY --from=healthcheck-build /healthcheck/healthcheck /usr/local/bin/healthcheck
+COPY --from=register-bouncer-build /register-bouncer/register-bouncer /usr/local/bin/register-bouncer
 COPY --from=config /staging/container-supervisor /staging/envelope /usr/local/bin/
 COPY --from=config --chown=65532:65532 /staging/etc/crowdsec/ /etc/crowdsec/
 COPY --from=config --chown=65532:65532 /staging/var/lib/crowdsec/ /var/lib/crowdsec/
