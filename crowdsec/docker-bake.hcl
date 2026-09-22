@@ -14,11 +14,11 @@ variable "SUPERVISOR_VERSION" {
 
 # renovate: datasource=github-releases depName=BaseCrusher/envelope
 variable "ENVELOPE_VERSION" {
-  default = "v1.1.1"
+  default = "v1.1.2"
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.0"
+  default = "1.1"
 }
 
 group "default" {
