@@ -232,7 +232,7 @@ each keeps its own offset beside its own log file.
 | `SUPERVISOR_PROCESSES__ACCESSLOG__ENABLED` | `false` | set to `true` to run access-log-exporter at all |
 | `SUPERVISOR_PROCESSES__ACCESSLOG__TICKER` | `@every 5s` | how often it runs. The `@every` prefix is mandatory |
 | `ACCESSLOGEXPORTER_URL` | — | POST target. `http://user:pass@host:8081/traefik` sends basic auth. Required once enabled; without it the process aborts |
-| `ACCESSLOGEXPORTER_FILE` | `/home/nonroot/config/access.log` | access log to read. Must match `TRAEFIK_ACCESSLOG_FILEPATH` |
+| `ACCESSLOGEXPORTER_FILE` | `/home/nonroot/logs/access.log` | access log to read. Must match `TRAEFIK_ACCESSLOG_FILEPATH` |
 | `ACCESSLOGEXPORTER_STATE` | `<FILE>.offset` | where the byte offset is kept |
 | `ACCESSLOGEXPORTER_BATCH` | `1000` | lines per request; one run loops until it reaches the end of the file |
 | `ACCESSLOGEXPORTER_MAX_SIZE` | `67108864` (64 MiB) | truncate the log above this many bytes; `0` truncates every run, `-1` never truncates |
@@ -258,7 +258,7 @@ services:
     environment:
       SUPERVISOR_PROCESSES__ACCESSLOG__ENABLED: "true"
       ACCESSLOGEXPORTER_URL: http://traefik:change-me@crowdsec:8081/traefik
-      TRAEFIK_ACCESSLOG_FILEPATH: /home/nonroot/config/access.log
+      TRAEFIK_ACCESSLOG_FILEPATH: /home/nonroot/logs/access.log
       TRAEFIK_ACCESSLOG_FORMAT: json
       TRAEFIK_ENTRYPOINTS_WEB_ADDRESS: ":80"
     ports:
@@ -360,7 +360,7 @@ On Kubernetes only the URL changes — no volume, no host path, no sidecar:
           - name: ACCESSLOGEXPORTER_URL
             value: http://traefik:change-me@crowdsec.crowdsec.svc:8081/traefik
           - name: TRAEFIK_ACCESSLOG_FILEPATH
-            value: /home/nonroot/config/access.log
+            value: /home/nonroot/logs/access.log
           - name: TRAEFIK_ACCESSLOG_FORMAT
             value: json
         volumeMounts:

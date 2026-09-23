@@ -69,7 +69,7 @@ COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./acces
 COPY --from=healthcheck-build /healthcheck/healthcheck ./healthcheck
 COPY certs.tmpl ./certs.tmpl
 COPY crowdsec-ban-page.html ./crowdsec-ban-page.html
-RUN mkdir -p config/dynamic
+RUN mkdir -p config/dynamic logs
 RUN mkdir -p plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin \
     && curl -fsSL https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin/archive/refs/tags/${CROWDSEC_PLUGIN_VERSION:?}.tar.gz \
     | tar -xz --strip-components=1 -C plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin

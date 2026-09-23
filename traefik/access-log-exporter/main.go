@@ -35,7 +35,7 @@ func main() {
 	if url == "" {
 		log.Fatal("ACCESSLOGEXPORTER_URL is required")
 	}
-	file := env("ACCESSLOGEXPORTER_FILE", "/home/nonroot/config/access.log")
+	file := env("ACCESSLOGEXPORTER_FILE", "/home/nonroot/logs/access.log")
 
 	batch, err := strconv.Atoi(env("ACCESSLOGEXPORTER_BATCH", "1000"))
 	if err != nil || batch < 1 {
