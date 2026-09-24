@@ -20,6 +20,15 @@ runs as an unprivileged user, not root.
   rest. Bouncers are registered through a small `register-bouncer` helper that
   takes the key from a flag, an env var (`--key-env`) or a mounted file
   (`--key-file`). Notification plugins are not included.
+- [crowdsec-web-ui](crowdsec-web-ui/) — the
+  [CrowdSec Web UI](https://github.com/TheDuffman85/crowdsec-web-ui) dashboard on
+  distroless Node.js: a React/Vite front end, a Hono/Node back end and a
+  `better-sqlite3` database, built from source at a pinned git ref and dropped
+  onto `nodejs24-debian13`. Runs as `nonroot` from the start, so upstream's
+  `gosu` + root `docker-entrypoint.sh` — whose job is to `chown /app/data` and
+  drop from root — is gone; `/app/data` must be writable by uid 65532 (use a
+  named volume). Point it at your CrowdSec LAPI with `CONFIG_INSTANCE_LAPI_*`
+  env vars or the generated `config.yaml`.
 - [valkey](valkey/) — Valkey on distroless: the upstream `valkey-server` and
   `valkey-cli` binaries copied out of `valkey/valkey` (the Debian, glibc image),
   with only the four libraries the base lacks (`libsystemd`, `libcap`, `libz`,
@@ -49,7 +58,7 @@ runs as an unprivileged user, not root.
 
 ### Health checks
 
-The three HTTP services (`coredns`, `crowdsec`, `traefik`) bundle a tiny static
+The HTTP services (`coredns`, `crowdsec`, `crowdsec-web-ui`, `traefik`) bundle a tiny static
 `healthcheck` binary — built once from `_shared/healthcheck`, a stdlib Go GET
 that exits non-zero on any non-`200` — so a shell-less image can still run a
 binary-form `HEALTHCHECK`. It is shipped, not baked in, because each service's
