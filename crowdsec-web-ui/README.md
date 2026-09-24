@@ -40,8 +40,31 @@ is already built for the target platform).
 | --- | --- | --- |
 | crowdsec-web-ui | [TheDuffman85/crowdsec-web-ui](https://github.com/TheDuffman85/crowdsec-web-ui) | `CROWDSECWEBUI_VERSION` — the git ref cloned and built |
 
-Upstream cuts no release tags yet, so `CROWDSECWEBUI_VERSION` pins a commit on
-`main`; Renovate tracks the branch head.
+`CROWDSECWEBUI_VERSION` pins an upstream release tag (CalVer, e.g. `2026.8.3`);
+Renovate tracks the release channel.
+
+### Package floors
+
+Because the app is built from upstream's pinned lockfile, a CVE in one of its
+(often transitive) npm dependencies can't be fixed by bumping the app — the fix
+has to force a newer version into the tree. `packages_override.json` is a list of
+security floors, mirroring `coredns/modules.json`:
+
+```json
+[
+  { "package": "undici", "min": "8.9.0", "advisory": "CVE-2026-13697" },
+  { "package": "ip-address", "min": "10.3.1", "advisory": "CVE-2026-69192" }
+]
+```
+
+Each entry is a **floor, not a pin**. After the initial install
+`apply-floors.mjs` reads the lowest version of each package already in the tree;
+only when it is below `min` does it write an entry into `pnpm-workspace.yaml`'s
+`overrides:` (the pnpm 11 home for overrides, where upstream already pins some of
+its own) and reinstall — otherwise it logs `floor no longer needed` and moves on.
+Stale entries are therefore safe to leave (they never downgrade below the fix);
+delete one once the build logs it as inert, i.e. upstream's own lockfile has
+caught up. Add an object to cover a new advisory — no Dockerfile change.
 
 ## Usage
 

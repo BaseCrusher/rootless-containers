@@ -2,13 +2,13 @@ variable "REGISTRY" {
   default = "ghcr.io/basecrusher/rootless-containers"
 }
 
-# renovate: datasource=git-refs depName=https://github.com/TheDuffman85/crowdsec-web-ui branch=main
+# renovate: datasource=github-releases depName=TheDuffman85/crowdsec-web-ui
 variable "CROWDSECWEBUI_VERSION" {
   default = "2026.8.3"
 }
 
 variable "IMAGE_REVISION" {
-  default = "1.0"
+  default = "1.1"
 }
 
 group "default" {

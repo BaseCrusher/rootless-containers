@@ -12,13 +12,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+COPY packages_override.json apply-floors.mjs /
+
 RUN git clone https://github.com/TheDuffman85/crowdsec-web-ui.git . \
     && git checkout "${CROWDSECWEBUI_VERSION:?}"
 
 ENV NODE_ENV=production
 
-RUN pnpm install --frozen-lockfile --prod=false \
-    && node scripts/download-geonames-data.mjs \
+RUN pnpm install --frozen-lockfile --prod=false
+
+RUN node /apply-floors.mjs; rc=$?; \
+    if [ "$rc" = "10" ]; then pnpm install --no-frozen-lockfile --prod=false; \
+    elif [ "$rc" != "0" ]; then exit "$rc"; fi
+
+RUN node scripts/download-geonames-data.mjs \
     && pnpm exec vite build \
     && pnpm exec tsup \
     && pnpm prune --prod \
