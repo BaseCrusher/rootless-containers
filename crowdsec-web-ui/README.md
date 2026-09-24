@@ -130,14 +130,16 @@ Unprivileged, so no capability is needed on the binary.
 
 | Tag | Base | Notes |
 | --- | --- | --- |
-| `:<ref>-1.0`, `:<ref>-1`, `:latest` | `nodejs24-debian13:nonroot` | no shell, no package manager |
-| `:<ref>-1.0-debug`, `:<ref>-1-debug`, `:latest-debug` | `nodejs24-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
+| `:v<version>-1.1`, `:v<version>-1`, `:latest` | `nodejs24-debian13:nonroot` | no shell, no package manager |
+| `:v<version>-1.1-debug`, `:v<version>-1-debug`, `:latest-debug` | `nodejs24-debian13:debug-nonroot` | identical, plus busybox at `/busybox/sh` |
 
 All under `ghcr.io/basecrusher/rootless-containers/crowdsec-web-ui`. Tags are
-`<version>-Y.Z`: `<version>` is `CROWDSECWEBUI_VERSION` (the git ref built), `Y.Z`
-is `IMAGE_REVISION` — `Y` for breaking repackaging of the same version, `Z` for
-fixes that don't. `<version>-Y` is a rolling tag that always points at the newest
-`Z` of that revision. `latest` follows `main`.
+`v<version>-Y.Z`: `<version>` is `CROWDSECWEBUI_VERSION` (the upstream release tag
+built, e.g. `2026.8.3`), `v`-prefixed on the image tag for consistency with the
+other images even though upstream's tag has no `v`. `Y.Z` is `IMAGE_REVISION` —
+`Y` for breaking repackaging of the same version, `Z` for fixes that don't.
+`v<version>-Y` is a rolling tag that always points at the newest `Z` of that
+revision. `latest` follows `main`.
 
 ## Cross-platform builds
 
@@ -147,8 +149,8 @@ cd crowdsec-web-ui && docker buildx bake
 
 | Target | Tag | Platforms |
 | --- | --- | --- |
-| `crowdsec-web-ui` | `${REGISTRY}/crowdsec-web-ui:${CROWDSECWEBUI_VERSION}-${IMAGE_REVISION}`, `:${CROWDSECWEBUI_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64` |
-| `crowdsec-web-ui-debug` | `${REGISTRY}/crowdsec-web-ui:${CROWDSECWEBUI_VERSION}-${IMAGE_REVISION}-debug`, `:${CROWDSECWEBUI_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64` |
+| `crowdsec-web-ui` | `${REGISTRY}/crowdsec-web-ui:v${CROWDSECWEBUI_VERSION}-${IMAGE_REVISION}`, `:v${CROWDSECWEBUI_VERSION}-<Y>`, `:latest` | `linux/amd64`, `linux/arm64` |
+| `crowdsec-web-ui-debug` | `${REGISTRY}/crowdsec-web-ui:v${CROWDSECWEBUI_VERSION}-${IMAGE_REVISION}-debug`, `:v${CROWDSECWEBUI_VERSION}-<Y>-debug`, `:latest-debug` | `linux/amd64`, `linux/arm64` |
 
 `REGISTRY`, `CROWDSECWEBUI_VERSION`, `IMAGE_REVISION` and `BASE_IMAGE` are bake
 variables — override any from the environment. The `better-sqlite3` native module
