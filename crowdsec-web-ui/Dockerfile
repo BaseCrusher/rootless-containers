@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=gcr.io/distroless/nodejs24-debian13:nonroot
 ARG CROWDSECWEBUI_VERSION
 
-FROM node:24.20.0-trixie-slim AS builder
+FROM node:24.21.0-trixie-slim AS builder
 
 ARG CROWDSECWEBUI_VERSION
 
