@@ -4,7 +4,7 @@ variable "REGISTRY" {
 
 # renovate: datasource=github-releases depName=TheDuffman85/crowdsec-web-ui
 variable "CROWDSECWEBUI_VERSION" {
-  default = "2026.8.3"
+  default = "2026.9.2"
 }
 
 variable "IMAGE_REVISION" {
