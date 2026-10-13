@@ -19,7 +19,7 @@ variable "CROWDSEC_PLUGIN_VERSION" {
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/envelope
 variable "ENVELOPE_VERSION" {
-  default = "v1.1.2"
+  default = "v1.2.0"
 }
 
 variable "IMAGE_REVISION" {
