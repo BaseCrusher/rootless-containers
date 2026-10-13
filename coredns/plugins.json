@@ -7,13 +7,13 @@
   },
   {
     "name": "traefik",
-    "repo": "https://github.com/BaseCrusher/coredns-traefik",
+    "repo": "https://github.com/M-S-Software-Engineering-AG/coredns-traefik",
     "ref": "v1.1.0",
     "before": "template"
   },
   {
     "name": "acmednschallenge",
-    "repo": "https://github.com/BaseCrusher/coredns-acmednschallenge",
+    "repo": "https://github.com/M-S-Software-Engineering-AG/coredns-acmednschallenge",
     "ref": "v2.3.2",
     "before": "traefik"
   }

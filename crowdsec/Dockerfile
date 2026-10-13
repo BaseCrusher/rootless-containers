@@ -17,17 +17,17 @@ RUN yq -i ' \
       del(.config_paths.plugin_dir) | \
       del(.api.server.tls) | \
       .common.log_dir = "/var/lib/crowdsec/log" | \
-      .api.server.online_client.credentials_path = "/etc/crowdsec/online_api_credentials.yaml" \
+      .api.server.online_client.credentials_path = "/etc/crowdsec/capi/credentials.yaml" \
     ' etc/crowdsec/config.yaml
 
-RUN mkdir -p var/lib/crowdsec/log supervisor_environment
+RUN mkdir -p var/lib/crowdsec/log supervisor_environment etc/crowdsec/capi
 
 RUN wget -q -O container-supervisor \
-    https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
+    https://github.com/M-S-Software-Engineering-AG/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
 
 RUN wget -q -O envelope \
-    https://github.com/BaseCrusher/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
+    https://github.com/M-S-Software-Engineering-AG/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x envelope
 
 FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS healthcheck-build
@@ -56,10 +56,24 @@ COPY register-bouncer/ .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
     go build -o register-bouncer .
 
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS register-capi-build
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+WORKDIR /register-capi
+
+COPY register-capi/ .
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOARM=${TARGETVARIANT#v} \
+    go build -o register-capi .
+
 FROM $BASE_IMAGE
 COPY --from=upstream /usr/local/bin/crowdsec /usr/local/bin/cscli /usr/local/bin/
 COPY --from=healthcheck-build /healthcheck/healthcheck /usr/local/bin/healthcheck
 COPY --from=register-bouncer-build /register-bouncer/register-bouncer /usr/local/bin/register-bouncer
+COPY --from=register-capi-build /register-capi/register-capi /usr/local/bin/register-capi
 COPY --from=config /staging/container-supervisor /staging/envelope /usr/local/bin/
 COPY --from=config --chown=65532:65532 /staging/etc/crowdsec/ /etc/crowdsec/
 COPY --from=config --chown=65532:65532 /staging/var/lib/crowdsec/ /var/lib/crowdsec/

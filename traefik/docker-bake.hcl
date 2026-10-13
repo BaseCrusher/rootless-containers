@@ -7,7 +7,7 @@ variable "TRAEFIK_VERSION" {
   default = "v3.7.13"
 }
 
-# renovate: datasource=github-releases depName=BaseCrusher/container-supervisor
+# renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/container-supervisor
 variable "SUPERVISOR_VERSION" {
   default = "v1.10.1"
 }
@@ -17,7 +17,7 @@ variable "CROWDSEC_PLUGIN_VERSION" {
   default = "v1.7.1"
 }
 
-# renovate: datasource=github-releases depName=BaseCrusher/envelope
+# renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/envelope
 variable "ENVELOPE_VERSION" {
   default = "v1.1.2"
 }

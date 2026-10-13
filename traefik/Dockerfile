@@ -59,10 +59,10 @@ RUN curl -fsSL https://github.com/traefik/traefik/releases/download/${TRAEFIK_VE
     | tar -xz traefik
 RUN setcap cap_net_bind_service=+ep traefik
 RUN curl -fsSL -o container-supervisor \
-    https://github.com/BaseCrusher/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
+    https://github.com/M-S-Software-Engineering-AG/container-supervisor/releases/download/$SUPERVISOR_VERSION/container-supervisor-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x container-supervisor
 RUN curl -fsSL -o envelope \
-    https://github.com/BaseCrusher/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
+    https://github.com/M-S-Software-Engineering-AG/envelope/releases/download/$ENVELOPE_VERSION/envelope-linux-$TARGETARCH$TARGETVARIANT \
     && chmod +x envelope
 COPY --from=certwatcher /certwatcher/certwatcher ./certwatcher
 COPY --from=access-log-exporter /access-log-exporter/access-log-exporter ./access-log-exporter

@@ -74,12 +74,17 @@ edits move together or not at all.
 - `common.log_dir` — `/var/log` does not exist on distroless. `log_media` is
   `stdout` so nothing writes there today; this only matters if someone sets
   `log_media: file`.
-- `api.server.online_client.credentials_path` — pointed at the empty
-  `online_api_credentials.yaml` that upstream already ships. CrowdSec warns and
-  disables CAPI while the file has no `login`, and picks it up once
-  `cscli capi register -f` fills it in, so enabling CAPI needs no config edit.
+- `api.server.online_client.credentials_path` — repointed from upstream's
+  `/etc/crowdsec/online_api_credentials.yaml` to `/etc/crowdsec/capi/credentials.yaml`,
+  a directory of its own so the single file worth persisting is one volume mount
+  (`/etc/crowdsec/capi`) instead of all of `/etc/crowdsec`. The `capi` dir is
+  `mkdir`'d in the `config` stage so it is `COPY --chown=65532:65532`'d present and
+  writable (`cscli capi register -f` writes the file, it does not create the
+  parent). CrowdSec warns and disables CAPI while the file has no `login`, and
+  picks it up once the `register_capi` start-time process fills it in with
+  `cscli capi register -f`, so enabling CAPI needs no config edit.
 
-## Startup: register, then CrowdSec
+## Startup: register (LAPI + CAPI), then CrowdSec
 
 `container-supervisor` is the entrypoint, with `supervisor.yml` baked in at its
 default config path. Runtime configuration is a file on disk
@@ -116,30 +121,48 @@ default nothing here templates `config.yaml` — it is used as mounted.
   to `/container-supervisor/supervisor_environment` (beside the config); that
   directory is pre-created `--chown=65532:65532` in the Dockerfile because
   `/container-supervisor` itself is root-owned and the process runs every start.
-- `register` — `one_shot`, `cscli machines add localhost --auto --force`. This is
+- `register_lapi` — `one_shot`, `cscli machines add localhost --auto --force`. This is
   what upstream's script guards with a "already registered?" check; `--force`
   makes the guard unnecessary, and re-registering at every start is harmless
   because it rewrites both the row and the credentials file. Creating the sqlite
-  database is a side effect of it.
+  database is a side effect of it. Named with an underscore, not a hyphen, like
+  every other process: container-supervisor/envelope split env overrides on `__`
+  and preserve single underscores, so a hyphen in the name would be unreachable
+  from `SUPERVISOR_PROCESSES__…` (the remote-LAPI `__ENABLED=false` toggle would
+  silently create a new process instead).
+- `register_capi` — `one_shot`, `on_failure: continue`, runs the `register-capi`
+  Go helper (`register-capi/`) with the credentials path as its one argument. The
+  helper **skips** when the file already holds a non-empty `login:` and otherwise
+  execs `cscli capi register -f <path>`. It keys on the `login:` field, not mere
+  existence, because that is exactly CrowdSec's own test (`missing login field` →
+  CAPI disabled) and because a persisted `/etc/crowdsec/capi` volume can carry an
+  empty or half-written file. `cscli capi register` has no idempotency of its own —
+  each call mints a new CAPI account — so the guard is load-bearing, not cosmetic. `depends_on register_lapi: success` so it is skipped in the
+  remote-LAPI setup (CAPI belongs on the LAPI node), the same coupling as
+  `add_bouncer`. `on_failure: continue` because it talks to `api.crowdsec.net`:
+  an unreachable network disables community data for that start but must not abort
+  the container. The path is both the stat target and the `-f` destination, so it
+  must match `online_client.credentials_path`; override it with
+  `SUPERVISOR_PROCESSES__REGISTER_CAPI__ARGUMENTS`.
 - `install_collections` — `one_shot`, `on_failure: continue`, **no**
   `depends_on`. It carries no `arguments`, so with nothing set it runs `cscli`
   bare (prints help, exits 0, a no-op). The operator supplies the install command
   through one env var, `SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS`.
   Baking the slot (rather than making the operator define a process from scratch
   and re-wire CrowdSec) turns bootstrapping a collection into setting a single
-  variable. It does **not** `depends_on` `register`: installing a hub item is a
+  variable. It does **not** `depends_on` `register_lapi`: installing a hub item is a
   download-and-symlink into `/etc/crowdsec`, never an LAPI or database call, so
-  coupling it to `register` would only break it in the remote-LAPI setup where
-  `register` is disabled (a disabled dependency counts as failure and would skip
+  coupling it to `register_lapi` would only break it in the remote-LAPI setup where
+  `register_lapi` is disabled (a disabled dependency counts as failure and would skip
   the install).
 - `add_bouncer` — `one_shot`, `on_failure: continue`, a `for_each` process that
   runs `cscli bouncers add {{1}} -k $(BOUNCER_KEY_{{2}})` once per row. Each
   `;`-field row is `<bouncer-name>;<KEY_SUFFIX>`; the key is expanded at launch
   from `BOUNCER_KEY_<SUFFIX>`, which an enabled `load_secrets` materialises from a
   mounted `_FILE` Secret, so it is never in the manifest. Unlike `install_collections` it
-  **does** `depends_on register: success` — `bouncers add` writes the LAPI
-  database `register` creates — so it is skipped in the remote-LAPI setup where
-  `register` is off, which is correct (bouncers belong on the remote LAPI there).
+  **does** `depends_on register_lapi: success` — `bouncers add` writes the LAPI
+  database `register_lapi` creates — so it is skipped in the remote-LAPI setup where
+  `register_lapi` is off, which is correct (bouncers belong on the remote LAPI there).
   `for_each` **cannot be empty** (fatal `for_each is set but empty`), so the file
   ships a single `traefik;TRAEFIK` row as the default; the operator overrides the
   list with `SUPERVISOR_PROCESSES__ADD_BOUNCER__FOR_EACH__N` and supplies each
@@ -155,15 +178,15 @@ default nothing here templates `config.yaml` — it is used as mounted.
   `SUPERVISOR_PROCESSES__CONFIG__ENABLED=true`. Left at `on_failure: fail` (like
   coredns' `corefile-gen`): if the override can't be written, abort rather than
   start against a stale one.
-- `crowdsec` — `service`, `depends_on` `register: success` **and**
-  `install_collections: any` **and** `add_bouncer: any` **and** `config: any`, so
-  the collection loads, the bouncers register and the overlay is written on the
-  same start rather than the next boot. `any` on
-  `install_collections`/`add_bouncer`/`config` because a failed or no-op step, or
-  a disabled one, must not block CrowdSec — a disabled dependency counts as
-  failure, so `success` there would skip CrowdSec whenever that step stays off.
-  A `for_each` dependency expands to every instance, so this one edge makes
-  CrowdSec wait for all `add_bouncer` rows. These edges, not a `register`
+- `crowdsec` — `service`, `depends_on` `register_lapi: success` **and**
+  `register_capi: any` **and** `install_collections: any` **and** `add_bouncer: any`
+  **and** `config: any`, so CAPI is registered, the collection loads, the bouncers
+  register and the overlay is written on the same start rather than the next boot.
+  `any` on `register_capi`/`install_collections`/`add_bouncer`/`config` because a
+  failed or no-op step, or a disabled one, must not block CrowdSec — a disabled
+  dependency counts as failure, so `success` there would skip CrowdSec whenever that
+  step stays off. A `for_each` dependency expands to every instance, so this one edge makes
+  CrowdSec wait for all `add_bouncer` rows. These edges, not a `register_lapi`
   dependency, are what order them before CrowdSec.
 - `upgrade_collections` — `cron` `0 3 * * *`, `cscli collections upgrade --all`,
   `on_failure: continue`. Keeps installed collections current without a restart.

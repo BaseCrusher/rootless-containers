@@ -15,11 +15,13 @@ runs as an unprivileged user, not root.
   of the official image, its preloaded hub and GeoLite2 databases, and no
   `docker_start.sh`. The env vars that script reads do not work here; mount your
   own `config.yaml` (a ConfigMap) to change settings, baked `cscli` slots in
-  `container-supervisor` install collections and register bouncers (`for_each`,
-  one per bouncer) before the agent starts, and `docker exec cscli …` does the
-  rest. Bouncers are registered through a small `register-bouncer` helper that
-  takes the key from a flag, an env var (`--key-env`) or a mounted file
-  (`--key-file`). Notification plugins are not included.
+  `container-supervisor` register the agent with the local and central APIs,
+  install collections and register bouncers (`for_each`, one per bouncer) before
+  the agent starts, and `docker exec cscli …` does the rest. Bouncers are
+  registered through a small `register-bouncer` helper that takes the key from a
+  flag, an env var (`--key-env`) or a mounted file (`--key-file`); a
+  `register-capi` helper registers with the CrowdSec Central API once and skips
+  on later starts. Notification plugins are not included.
 - [crowdsec-web-ui](crowdsec-web-ui/) — the
   [CrowdSec Web UI](https://github.com/TheDuffman85/crowdsec-web-ui) dashboard on
   distroless Node.js: a React/Vite front end, a Hono/Node back end and a
@@ -39,7 +41,7 @@ runs as an unprivileged user, not root.
 - [traefik](traefik/) — Traefik on `scratch`: the upstream release binary, a CA
   bundle and nothing else. Binds ports 80/443 without root via
   `cap_net_bind_service`; the Docker provider goes through
-  [docker-socket-proxy-go](https://github.com/BaseCrusher/docker-socket-proxy-go),
+  [docker-socket-proxy-go](https://github.com/M-S-Software-Engineering-AG/docker-socket-proxy-go),
   the image never touches `docker.sock` itself. Ships an optional `certwatcher`
   that turns a directory of certificates — the ones `coredns` issues, say — into
   a dynamic configuration Traefik reloads on its own, and an optional

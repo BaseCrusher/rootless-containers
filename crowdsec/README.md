@@ -38,8 +38,8 @@ drove from env vars, a mounted `config.yaml` does — see
 | Component | Repo | Pinned by |
 | --- | --- | --- |
 | `crowdsec`, `cscli` | [crowdsecurity/crowdsec](https://github.com/crowdsecurity/crowdsec) | `CROWDSEC_VERSION` — copied out of `crowdsecurity/crowdsec:$CROWDSEC_VERSION` |
-| container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
-| envelope | [envelope](https://github.com/BaseCrusher/envelope) | `ENVELOPE_VERSION` — renders `config.yaml.local` from env, [off by default](#generating-configyamllocal-from-env-vars) |
+| container-supervisor | [container-supervisor](https://github.com/M-S-Software-Engineering-AG/container-supervisor) | `SUPERVISOR_VERSION` |
+| envelope | [envelope](https://github.com/M-S-Software-Engineering-AG/envelope) | `ENVELOPE_VERSION` — renders `config.yaml.local` from env, [off by default](#generating-configyamllocal-from-env-vars) |
 
 Preloaded from the official image: the hub index, the `crowdsecurity/linux`
 collection (syslog, sshd, its scenarios), `crowdsecurity/whitelists`,
@@ -223,8 +223,9 @@ supervisor's default `on_failure: fail`, so a listed variable that is unset, or
 whose file it cannot read, aborts the container rather than starting without the
 secret.
 
-Every **baked** start-time process (`register`, `install_collections`, `config`,
-`crowdsec`) already waits for `load_secrets`. An acquisition or bootstrap process
+Every **baked** start-time process (`register_lapi`, `register_capi`,
+`install_collections`, `add_bouncer`, `config`, `crowdsec`) already waits for
+`load_secrets`. An acquisition or bootstrap process
 you [define yourself](#acquisition-files-from-env-vars) that consumes a secret
 must add the same wait so the file exists before it reads env:
 
@@ -242,7 +243,7 @@ without a shell, because it is the process being executed:
 ```sh
 docker exec crowdsec cscli bouncers add traefik -k "$(openssl rand -hex 16)"
 docker exec crowdsec cscli collections install crowdsecurity/traefik
-docker exec crowdsec cscli capi register -f /etc/crowdsec/online_api_credentials.yaml
+docker exec crowdsec cscli capi register -f /etc/crowdsec/capi/credentials.yaml
 docker exec crowdsec cscli console enroll "$ENROLL_KEY"
 ```
 
@@ -275,7 +276,7 @@ That is the whole change — the dependency wiring is already baked in: `crowdse
 collection loads on the same start rather than the next boot. The step has no
 `depends_on` of its own: installing a collection is a hub-and-filesystem
 operation that never touches the LAPI or the database, so it does not wait on
-`register` and still works when `register` is disabled (remote LAPI).
+`register_lapi` and still works when `register_lapi` is disabled (remote LAPI).
 
 `cscli collections install` is idempotent: an already-installed item is skipped
 (exit 0), so keep the full list of collections you want in the variable and let
@@ -303,7 +304,7 @@ instead (`SUPERVISOR_PROCESSES__INSTALL_COLLECTIONS__ARGUMENTS__0=…`, `__1=…
 
 A bouncer's API key is a database row, so it is seeded at start rather than
 exec'd in afterwards. `supervisor.yml` ships an `add_bouncer` process that uses
-container-supervisor's [`for_each`](https://github.com/BaseCrusher/container-supervisor)
+container-supervisor's [`for_each`](https://github.com/M-S-Software-Engineering-AG/container-supervisor)
 to register **one bouncer per row** from a single definition:
 
 ```yaml
@@ -318,7 +319,7 @@ to register **one bouncer per row** from a single definition:
       load_secrets:
         exit: success
         ignore_exit_when_disabled: true
-      register:
+      register_lapi:
         exit: success
 ```
 
@@ -375,9 +376,9 @@ How the rest fits:
   time) and then re-adds it with the current key. This means every restart rewrites
   the bouncer to the mounted key; drop the flag if you would rather a restart leave
   an existing bouncer untouched (and tolerate the `already exists` line).
-- **`depends_on register: success`** because `bouncers add` writes the LAPI
-  database that `register` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
-  setup where `register` is disabled, `add_bouncer` is skipped — add bouncers on
+- **`depends_on register_lapi: success`** because `bouncers add` writes the LAPI
+  database that `register_lapi` creates. In the [remote-LAPI](#an-agent-without-a-local-api)
+  setup where `register_lapi` is disabled, `add_bouncer` is skipped — add bouncers on
   the remote LAPI there.
 - **`on_failure: continue`** keeps a registration failure — LAPI unreachable, a
   bad key, or (without `--force`) an `already exists` re-add — from aborting the
@@ -429,9 +430,9 @@ wire CrowdSec to wait with `SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__<NAME>__
 (it **merges** into `crowdsec`'s existing `depends_on`). But past one extra
 command that gets unwieldy — mount your own supervisor configuration over
 `/container-supervisor/config.yml`. It replaces the file in the image, so it has
-to declare `register` and `crowdsec` again as well — and the baked
-`install_collections`, `config` and `upgrade_collections` are gone unless you
-re-declare them too:
+to declare `register_lapi` and `crowdsec` again as well — and the baked
+`register_capi`, `install_collections`, `add_bouncer`, `config` and
+`upgrade_collections` are gone unless you re-declare them too:
 
 ```yaml
 hide_labels: true
@@ -471,23 +472,64 @@ stays the one you passed. That makes the API key a property of the manifest —
 a Kubernetes Secret or a Swarm config — rather than something you exec once and
 have to remember.
 
-## The Central API is off until you register
+## The Central API registers itself at start
 
-`api.server.online_client.credentials_path` is set, but the file it points at is
-empty, so the community blocklist and signal sharing start out disabled:
+`api.server.online_client.credentials_path` points at
+`/etc/crowdsec/capi/credentials.yaml` — a directory of its own so the one file
+worth persisting can be a volume without carrying the rest of `/etc/crowdsec`.
+The baked `register_capi` process fills it in before CrowdSec starts, so the
+community blocklist and signal sharing are enabled out of the box — no manual
+step. It is a `one_shot` that runs a small `register-capi` Go helper (source
+under `register-capi/`): the helper **skips** when the credentials file already
+holds a `login`, and otherwise runs
+`cscli capi register -f <path>`. Registering once rather than every start is the
+whole point of the guard — each `cscli capi register` call creates a *new* CAPI
+account, so blindly re-running it would leave a trail of dead ones.
 
-```
-level=warning msg="can't load CAPI credentials from '/etc/crowdsec/online_api_credentials.yaml' (missing login field)"
-level=warning msg="Communication with CrowdSec Central API disabled from configuration file"
-```
+- **Mount a volume at `/etc/crowdsec/capi`** to keep the credentials across
+  recreates — that is the point of the dedicated directory. Without it the helper
+  registers a *fresh* CAPI account on every new container, leaving dead ones
+  behind:
 
-`cscli capi register -f /etc/crowdsec/online_api_credentials.yaml` fills it in
-and the next start picks it up — nothing else to configure. Do that once, with
-`/etc/crowdsec` on a volume: every registration creates a new CAPI account, so
-running it at every start (via `install_collections` or a start-time process)
-leaves a trail of dead ones.
+  ```yaml
+      volumes:
+        - cscapi:/etc/crowdsec/capi
+  ```
 
-Registration talks to `api.crowdsec.net`, which is why it is not the default.
+  A named volume is seeded from the image, so the directory is already present
+  and writable by uid 65532; a bind mount to an empty host directory works too,
+  as long as uid 65532 can write it. Nothing else under `/etc/crowdsec` has to be
+  persisted for CAPI.
+- **The guard checks the `login` field, not mere existence** — the same test
+  CrowdSec uses (`missing login field` → CAPI disabled), and robust against a
+  persisted volume that carries an empty or half-written file. "Already
+  registered" means a non-empty `login:`; anything else (missing, empty, no
+  `login`) triggers a registration.
+- **The credentials path is the helper's one argument** in `supervisor.yml`
+  (`arguments: ["/etc/crowdsec/capi/credentials.yaml"]`), used both for the
+  guard and for `-f`. Move it by overriding that argument **and** matching
+  `config.yaml`'s `online_client.credentials_path` (and mount a volume at the new
+  directory):
+
+  ```yaml
+      SUPERVISOR_PROCESSES__REGISTER_CAPI__ARGUMENTS: /some/other/dir/credentials.yaml
+  ```
+- **`on_failure: continue`**, so registration failing (it talks to
+  `api.crowdsec.net`, which may be unreachable) is logged and CrowdSec still
+  starts — community data is simply disabled until a later start succeeds.
+- **`depends_on register_lapi: success`**, so in the
+  [remote-LAPI](#an-agent-without-a-local-api) setup where `register_lapi` is
+  disabled, `register_capi` is skipped too — CAPI belongs on the node that runs
+  the LAPI.
+
+Disable it (to keep CrowdSec off `api.crowdsec.net` entirely) with
+`SUPERVISOR_PROCESSES__REGISTER_CAPI__ENABLED: "false"`; CrowdSec logs that CAPI
+is disabled and starts normally.
+
+**Running HA?** A CAPI account is one machine to the Central API, so only one
+instance may register and sync with CAPI — the rest reuse its credentials. See
+[Multiple instances on a shared database](#multiple-instances-on-a-shared-database)
+for that and the matching `register_lapi` setup.
 
 ## Configuration
 
@@ -554,7 +596,7 @@ level=info msg="Loading yaml file: '/etc/crowdsec/config.yaml' with additional v
 
 When a mounted file is awkward — you want a few overrides driven by the same env
 the rest of the deployment uses — `supervisor.yml` ships a `config` process that
-runs [`envelope`](https://github.com/BaseCrusher/envelope) to build
+runs [`envelope`](https://github.com/M-S-Software-Engineering-AG/envelope) to build
 `config.yaml.local` from `CROWDSEC_CONFIG_`-prefixed variables before CrowdSec
 starts. It is **disabled by default**; enable it and set the values:
 
@@ -618,26 +660,28 @@ none of them:
 
 ### An agent without a local API
 
-The `register` process runs `cscli machines add localhost --auto --force` at
+The `register_lapi` process runs `cscli machines add localhost --auto --force` at
 every start, which owns `/etc/crowdsec/local_api_credentials.yaml`. To point the
 agent at a remote LAPI instead, disable it and drop CrowdSec's dependency on it:
 
 ```yaml
     environment:
-      SUPERVISOR_PROCESSES__REGISTER__ENABLED: "false"
-      SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__REGISTER__EXIT: any
+      SUPERVISOR_PROCESSES__REGISTER_LAPI__ENABLED: "false"
+      SUPERVISOR_PROCESSES__CROWDSEC__DEPENDS_ON__REGISTER_LAPI__EXIT: any
     volumes:
       - ./local_api_credentials.yaml:/etc/crowdsec/local_api_credentials.yaml:ro
 ```
 
 Both are needed: a disabled process counts as a failure to anything that
 `depends_on` it, so without the second variable CrowdSec is skipped and the
-container exits. Disable the local API itself in `config.yaml`
+container exits. `register_capi` and `add_bouncer` both `depends_on
+register_lapi`, so they skip on their own here — CAPI registration and bouncers
+belong on the remote LAPI node. Disable the local API itself in `config.yaml`
 (`api.server.enable: false`).
 
 ### Multiple instances on a shared database
 
-`register` runs `cscli machines add localhost --auto --force`, and `localhost`
+`register_lapi` runs `cscli machines add localhost --auto --force`, and `localhost`
 is a fixed name. That is fine for one container: `--force` just rewrites its own
 row every start. Scale to several instances against **one shared database**
 (Postgres or MySQL via `config.yaml`'s `db_config`, every instance reaching it
@@ -650,7 +694,7 @@ each instance a **unique** name — no image change:
 
 ```yaml
         env:
-          - name: SUPERVISOR_PROCESSES__REGISTER__ARGUMENTS
+          - name: SUPERVISOR_PROCESSES__REGISTER_LAPI__ARGUMENTS
             value: machines add $(POD_NAME) --auto --force
 ```
 
@@ -660,7 +704,7 @@ downward API into `POD_NAME`, a Compose replica index, the container name) and
 pass the resolved value in. Each instance then owns its own row, and `--force`
 only ever rewrites that one.
 
-Two things that shared database changes, unrelated to the name:
+Three things that shared database changes, unrelated to the name:
 
 - **First-boot schema race.** On a brand-new empty database, N instances all
   running `machines add` at once each try to create the schema. Bring up one
@@ -671,6 +715,13 @@ Two things that shared database changes, unrelated to the name:
   hub-only `install_collections` — runs on every instance and collides exactly the
   way `localhost` did. Enable it on a single init instance, or give each a unique
   bouncer name.
+- **Register with CAPI once.** A CAPI account is one machine to the Central API,
+  so `register_capi` must run on a single instance too — registering per replica
+  mints a separate account for each and has them all push and pull signals
+  independently. Let one instance own it and share its `credentials.yaml`: either
+  mount the same `/etc/crowdsec/capi` volume read-only on the others, or disable
+  `register_capi` (`SUPERVISOR_PROCESSES__REGISTER_CAPI__ENABLED: "false"`)
+  everywhere but that one.
 
 ## Distroless caveats
 

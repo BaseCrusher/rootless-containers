@@ -44,11 +44,11 @@ A static configuration file is `TRAEFIK_CONFIGFILE`, not `--configFile`.
 | Component | Repo | Pinned by |
 | --- | --- | --- |
 | Traefik | [traefik/traefik](https://github.com/traefik/traefik) | `TRAEFIK_VERSION` |
-| container-supervisor | [container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
+| container-supervisor | [container-supervisor](https://github.com/M-S-Software-Engineering-AG/container-supervisor) | `SUPERVISOR_VERSION` |
 | certwatcher | `certwatcher/` in this folder | built from source with the image |
 | access-log-exporter | `access-log-exporter/` in this folder | built from source with the image |
 | crowdsec-bouncer plugin | [maxlerebourg/crowdsec-bouncer-traefik-plugin](https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin) | `CROWDSEC_PLUGIN_VERSION` |
-| envelope | [envelope](https://github.com/BaseCrusher/envelope) | `ENVELOPE_VERSION` — renders dynamic config from env, [off by default](#generating-dynamic-config-from-env-vars) |
+| envelope | [envelope](https://github.com/M-S-Software-Engineering-AG/envelope) | `ENVELOPE_VERSION` — renders dynamic config from env, [off by default](#generating-dynamic-config-from-env-vars) |
 
 ## Usage
 
@@ -467,7 +467,7 @@ Point the plugin at it to serve it to blocked clients:
 ### Generating dynamic config from env vars
 
 When mounting a dynamic config file is awkward, `supervisor.yml` ships a `config`
-process that runs [`envelope`](https://github.com/BaseCrusher/envelope) to build
+process that runs [`envelope`](https://github.com/M-S-Software-Engineering-AG/envelope) to build
 `/home/nonroot/config/dynamic/config.yml` from `TRAEFIKCONFIG_`-prefixed
 variables before Traefik starts. It is **disabled by default**; enable it, point
 the file provider at the dynamic directory, and set the values:
@@ -517,14 +517,14 @@ which is the entire thing this image exists to avoid.
 
 Put a read-only socket proxy in front of it instead and point Traefik at the
 proxy over TCP. Use
-[docker-socket-proxy-go](https://github.com/BaseCrusher/docker-socket-proxy-go) —
+[docker-socket-proxy-go](https://github.com/M-S-Software-Engineering-AG/docker-socket-proxy-go) —
 the companion image to this one, read-only by default with every API section
 denied until you enable it:
 
 ```yaml
 services:
   dockerproxy:
-    image: ghcr.io/basecrusher/docker-socket-proxy-go:latest
+    image: ghcr.io/m-s-software-engineering-ag/docker-socket-proxy-go:latest
     environment:
       CONTAINERS: "true"
       EVENTS: "true"

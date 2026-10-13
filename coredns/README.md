@@ -22,11 +22,11 @@ same `-conf`/`-dns.port` flags.
 | Component | Repo | Pinned by |
 | --- | --- | --- |
 | CoreDNS | [coredns/coredns](https://github.com/coredns/coredns) | `COREDNS_VERSION` |
-| `acmednschallenge` plugin | [BaseCrusher/coredns-acmednschallenge](https://github.com/BaseCrusher/coredns-acmednschallenge) | `plugins.json` |
-| `traefik` plugin | [BaseCrusher/coredns-traefik](https://github.com/BaseCrusher/coredns-traefik) | `plugins.json` |
+| `acmednschallenge` plugin | [M-S-Software-Engineering-AG/coredns-acmednschallenge](https://github.com/M-S-Software-Engineering-AG/coredns-acmednschallenge) | `plugins.json` |
+| `traefik` plugin | [M-S-Software-Engineering-AG/coredns-traefik](https://github.com/M-S-Software-Engineering-AG/coredns-traefik) | `plugins.json` |
 | `records` plugin | [coredns/records](https://github.com/coredns/records) | `plugins.json` |
-| `corefile-gen` | [BaseCrusher/coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
-| `container-supervisor` | [BaseCrusher/container-supervisor](https://github.com/BaseCrusher/container-supervisor) | `SUPERVISOR_VERSION` |
+| `corefile-gen` | [M-S-Software-Engineering-AG/coredns-envvar-corefile](https://github.com/M-S-Software-Engineering-AG/coredns-envvar-corefile) | `COREFILE_GEN_VERSION` |
+| `container-supervisor` | [M-S-Software-Engineering-AG/container-supervisor](https://github.com/M-S-Software-Engineering-AG/container-supervisor) | `SUPERVISOR_VERSION` |
 | `a-records` helper | this repo (`coredns/a-records/`) | built from source at image build |
 
 ### Patched Go modules
@@ -73,10 +73,10 @@ example.org:53 {
 ```
 
 At startup
-[`corefile-gen`](https://github.com/BaseCrusher/coredns-envvar-corefile) renders
+[`corefile-gen`](https://github.com/M-S-Software-Engineering-AG/coredns-envvar-corefile) renders
 the `COREDNS_*` variables into `/home/nonroot/config/Corefile`, then CoreDNS
 starts against it — sequenced by
-[`container-supervisor`](https://github.com/BaseCrusher/container-supervisor) as
+[`container-supervisor`](https://github.com/M-S-Software-Engineering-AG/container-supervisor) as
 PID 1. If the Corefile cannot be written the container exits instead of starting
 CoreDNS. CoreDNS's log lines reach `docker logs` unprefixed, exactly as from the
 official image; lines tagged `[supervisor]` come from the supervisor itself.
@@ -84,7 +84,7 @@ official image; lines tagged `[supervisor]` come from the supervisor itself.
 In short: one group per server block, `_ZONE` and `_PORT` for the header, `__`
 for a directive inside the block and one more `__` per nesting level, empty
 value for a bare directive. See
-[coredns-envvar-corefile](https://github.com/BaseCrusher/coredns-envvar-corefile)
+[coredns-envvar-corefile](https://github.com/M-S-Software-Engineering-AG/coredns-envvar-corefile)
 for the full syntax.
 
 Because the generator always writes that path, mounting your own Corefile over
