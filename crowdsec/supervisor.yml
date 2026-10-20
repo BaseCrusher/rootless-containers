@@ -4,14 +4,6 @@ processes:
   load_secrets:
     type: prepare_secrets
     enabled: false
-  register_lapi:
-    path: /usr/local/bin/cscli
-    arguments: ["machines", "add", "localhost", "--auto", "--force"]
-    type: one_shot
-    depends_on:
-      load_secrets:
-        exit: success
-        ignore_exit_when_disabled: true
   register_capi:
     path: /usr/local/bin/register-capi
     arguments: ["/etc/crowdsec/capi/credentials.yaml"]
@@ -21,7 +13,15 @@ processes:
       load_secrets:
         exit: success
         ignore_exit_when_disabled: true
-      register_lapi:
+  register_lapi:
+    path: /usr/local/bin/cscli
+    arguments: ["machines", "add", "localhost", "--auto", "--force"]
+    type: one_shot
+    depends_on:
+      load_secrets:
+        exit: success
+        ignore_exit_when_disabled: true
+      register_capi:
         exit: success
   install_collections:
     path: /usr/local/bin/cscli
