@@ -542,7 +542,7 @@ made at build time:
 | `config_paths.plugin_dir` removed | the notification plugins are not shipped |
 | `api.server.tls` removed | upstream ships it with `allowed_ou` but no certificates, which upstream's script deletes unless `USE_TLS` is set |
 | `common.log_dir` → `/var/lib/crowdsec/log` | `/var/log` does not exist here and would not be writable |
-| `api.server.online_client.credentials_path` set | so registering with CAPI is enough to enable it |
+| `api.server.online_client.credentials_path` → `/etc/crowdsec/capi/credentials.yaml` | moved out of upstream's `/etc/crowdsec/online_api_credentials.yaml` into its own directory, so the single file worth persisting is one volume mount (`/etc/crowdsec/capi`) instead of all of `/etc/crowdsec` — see [The Central API registers itself at start](#the-central-api-registers-itself-at-start) |
 
 Everything else is stock, including `listen_uri: 0.0.0.0:8080`, sqlite, and the
 Prometheus endpoint on `6060`.
