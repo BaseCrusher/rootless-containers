@@ -4,7 +4,7 @@ variable "REGISTRY" {
 
 # renovate: datasource=github-releases depName=coredns/coredns
 variable "COREDNS_VERSION" {
-  default = "v1.14.7"
+  default = "v1.15.0"
 }
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/coredns-envvar-corefile
