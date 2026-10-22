@@ -14,7 +14,7 @@ variable "SUPERVISOR_VERSION" {
 
 # renovate: datasource=github-releases depName=maxlerebourg/crowdsec-bouncer-traefik-plugin
 variable "CROWDSEC_PLUGIN_VERSION" {
-  default = "v1.7.1"
+  default = "v1.8.1"
 }
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/envelope
