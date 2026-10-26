@@ -9,7 +9,7 @@ variable "TRAEFIK_VERSION" {
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.10.1"
+  default = "v1.11.0"
 }
 
 # renovate: datasource=github-releases depName=maxlerebourg/crowdsec-bouncer-traefik-plugin
