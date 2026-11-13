@@ -9,7 +9,7 @@ variable "CROWDSEC_VERSION" {
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/container-supervisor
 variable "SUPERVISOR_VERSION" {
-  default = "v1.11.0"
+  default = "v1.11.4"
 }
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/envelope
