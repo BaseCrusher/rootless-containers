@@ -4,7 +4,7 @@ variable "REGISTRY" {
 
 # renovate: datasource=docker depName=crowdsecurity/crowdsec
 variable "CROWDSEC_VERSION" {
-  default = "v1.8.1"
+  default = "v1.8.2"
 }
 
 # renovate: datasource=github-releases depName=M-S-Software-Engineering-AG/container-supervisor
