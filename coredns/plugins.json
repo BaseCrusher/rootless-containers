@@ -14,7 +14,7 @@
   {
     "name": "acmednschallenge",
     "repo": "https://github.com/M-S-Software-Engineering-AG/coredns-acmednschallenge",
-    "ref": "v2.3.2",
+    "ref": "v2.4.0",
     "before": "traefik"
   }
 ]
